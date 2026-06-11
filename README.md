@@ -1,7 +1,7 @@
 # spec-to-tests
 
 > Matériel runnable accompagnant la série d'articles
-> **["De la spécification à l'exécution — un workflow pour fiabiliser le code à l'ère IA"](https://blog-des-telecoms.com/)**
+> **["De la spécification à l'exécution — un workflow pour fiabiliser le code à l'ère IA"](https://www.blog-des-telecoms.com/blog/ia-tests-indispensables-workflow/)**
 > sur [blog-des-telecoms.com](https://blog-des-telecoms.com/).
 
 L'idée centrale de la série : à l'ère des agents IA capables de générer du code en quelques secondes, la qualité ne se joue plus sur l'écriture du code, mais sur la **spécification** en amont et sur les **tests** qui guident l'agent. Ce dépôt rassemble les démos, *skills* et exemples concrets pour mettre en pratique ce workflow.
@@ -32,8 +32,8 @@ spec-to-tests/
 
 | # | Titre | Lien |
 |---|---|---|
-| 1 | L'IA n'a pas tué les tests, elle les rend indispensables | [à venir] |
-| 2 | La spécification exécutable : ce que vous donnez à lire à l'humain et à l'IA | [à venir] |
+| 1 | L'IA n'a pas tué les tests, elle les rend indispensables | [Article 1](https://www.blog-des-telecoms.com/blog/ia-tests-indispensables-workflow/) |
+| 2 | La spécification exécutable : ce que vous donnez à lire à l'humain et à l'IA | [Article 2](https://www.blog-des-telecoms.com/blog/specification-executable-gherkin-proprietes/) |
 | 3 | Qui écrit le test, qui écrit le code ? La répartition humain / IA / outils | [à venir] |
 | 4 | Mesurer si les tests valent quelque chose : les 4 axes | [à venir] |
 | 5 | Property-based testing : la défense contre les oracles faibles | [à venir] |
