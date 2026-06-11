@@ -1,0 +1,48 @@
+# Go
+*.test
+*.out
+*.exe
+*.dll
+*.so
+*.dylib
+coverage.out
+coverage.html
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.hypothesis/
+.pytest_cache/
+.mutmut-cache
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+dist/
+coverage/
+.stryker-tmp/
+reports/
+*.log
+.npm/
+.pnpm-store/
+
+# Pact
+pacts/logs/
+pacts/*.json.bak
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+api/billing
+api/migrations/*.bak
