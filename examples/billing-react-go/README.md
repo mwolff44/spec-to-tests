@@ -1,37 +1,37 @@
 ---
 date: 2026-05-21
-contexte: Démo runnable du stack React + Go (Gin/GORM/Postgres) + Pact entre les deux
-but: illustrer le workflow décrit dans test-stack-react-go-postgresql.md sur un cas concret
+context: Runnable demo of the React + Go (Gin/GORM/Postgres) + Pact stack between the two
+purpose: illustrate the workflow described in test-stack-react-go-postgresql.md on a concrete case
 ---
 
 # test-stack-demo-billing
 
-Mini-application "billing" qui démontre la pile de tests recommandée :
+Mini "billing" application that demonstrates the recommended test stack:
 
-- **Backend Go** : un endpoint `POST /api/rate` qui calcule le coût d'un appel à partir d'un tarif stocké en base.
-- **Frontend React** : un formulaire qui appelle l'endpoint et affiche le coût.
-- **Contract testing** : Pact entre les deux, sans dépendance E2E.
+- **Go backend**: a `POST /api/rate` endpoint that calculates the cost of a call from a tariff stored in the database.
+- **React frontend**: a form that calls the endpoint and displays the cost.
+- **Contract testing**: Pact between the two, with no E2E dependency.
 
-## Le domaine
+## The domain
 
-Calcul de prix d'un appel téléphonique :
-- Input : durée (secondes) + numéro de destination (E.164).
-- Lookup : on cherche en base le tarif dont le préfixe matche (le plus long, longest-prefix).
-- Output : coût (durée arrondie à la minute supérieure × tarif).
+Pricing calculation for a phone call:
+- Input: duration (seconds) + destination number (E.164).
+- Lookup: find in the database the tariff whose prefix matches (longest-prefix match).
+- Output: cost (duration rounded up to the next minute × tariff).
 
-Simpliste — mais suffisant pour montrer :
-- Logique pure → unit tests + PBT.
-- Persistance → testcontainers-go + Postgres réel.
-- API HTTP → httptest + Gin.
+Simplistic — but sufficient to demonstrate:
+- Pure logic → unit tests + PBT.
+- Persistence → testcontainers-go + real Postgres.
+- HTTP API → httptest + Gin.
 - Frontend → Vitest + RTL + MSW.
-- Contrat → Pact consumer (JS) + provider (Go).
+- Contract → Pact consumer (JS) + provider (Go).
 
 ## Structure
 
 ```
 test-stack-demo-billing/
-├── api/                          # backend Go
-│   ├── pricing/                  # logique pure (unit + rapid PBT)
+├── api/                          # Go backend
+│   ├── pricing/                  # pure logic (unit + rapid PBT)
 │   ├── repository/               # GORM + tariff (integration testcontainers)
 │   ├── handlers/                 # Gin handlers (httptest)
 │   ├── pacts/                    # Pact provider verification
@@ -43,76 +43,76 @@ test-stack-demo-billing/
 │       ├── components/           # RateCalculator + Vitest+RTL test
 │       └── test/                 # MSW handlers, setup
 │
-├── pacts/                        # contracts générés (artefact CI)
-└── docker-compose.yml            # Postgres + API + Front pour E2E
+├── pacts/                        # generated contracts (CI artifact)
+└── docker-compose.yml            # Postgres + API + Front for E2E
 ```
 
-## Pré-requis
+## Prerequisites
 
 - Go ≥ 1.22
-- Node ≥ 20 + pnpm (ou npm)
-- Docker (pour testcontainers + docker-compose)
+- Node ≥ 20 + pnpm (or npm)
+- Docker (for testcontainers + docker-compose)
 
-## Lancement local (sans Docker)
+## Local setup (without Docker)
 
 ### Backend
 
-```fish
+```bash
 cd api
 go mod tidy
-# Lance Postgres séparément (ou docker run --rm -d -p 5432:5432 -e POSTGRES_PASSWORD=test postgres:16)
+# Start Postgres separately (or docker run --rm -d -p 5432:5432 -e POSTGRES_PASSWORD=test postgres:16)
 export DATABASE_URL="postgres://test:test@localhost:5432/billing?sslmode=disable"
 go run .
 ```
 
 ### Frontend
 
-```fish
+```bash
 cd frontend
 pnpm install
 pnpm dev
 ```
 
-Ouvrir http://localhost:5173.
+Open http://localhost:5173.
 
-## Lancer les tests
+## Running the tests
 
-### Backend Go
+### Go backend
 
-```fish
+```bash
 cd api
 
-# Unit (rapide, sans Docker)
+# Unit (fast, no Docker)
 go test -race ./pricing/...
 
-# Handlers (rapide, sans Docker)
+# Handlers (fast, no Docker)
 go test -race ./handlers/...
 
-# Intégration DB (lent, requiert Docker)
+# DB integration (slow, requires Docker)
 go test -race -tags=integration ./repository/...
 
-# Pact provider verification (lent, requiert Docker + pact-broker OU fichier pact local)
+# Pact provider verification (slow, requires Docker + pact-broker OR local pact file)
 PACT_FILE=../pacts/react-frontend-go-api.json go test -race -tags=pact ./pacts/...
 
 # Lint
 golangci-lint run
 
-# Mutation (lent, sur changed packages)
+# Mutation (slow, on changed packages)
 gremlins unleash ./pricing/...
 ```
 
-### Frontend React
+### React frontend
 
-```fish
+```bash
 cd frontend
 
-# Unit + composants
+# Unit + components
 pnpm test:ci
 
-# Pact consumer (génère le fichier pact dans ../pacts/)
+# Pact consumer (generates the pact file in ../pacts/)
 pnpm test:pact
 
-# Mutation (lent)
+# Mutation (slow)
 pnpm test:mutation
 
 # Lint
@@ -121,47 +121,47 @@ pnpm lint
 
 ### Cross-stack (E2E)
 
-```fish
+```bash
 docker compose up --build --wait
 pnpm --dir frontend playwright test
 docker compose down
 ```
 
-## Workflow Pact
+## Pact workflow
 
-Le pattern bout-en-bout :
+The end-to-end pattern:
 
 ```
-1. Le frontend écrit un consumer test qui décrit ce qu'il attend de l'API.
-   → pnpm test:pact génère pacts/react-frontend-go-api.json.
+1. The frontend writes a consumer test describing what it expects from the API.
+   → pnpm test:pact generates pacts/react-frontend-go-api.json.
 
-2. Le fichier pact est publié sur un broker (Pactflow / self-hosted) — ou pour
-   cette démo, partagé via le filesystem (../pacts/).
+2. The pact file is published to a broker (Pactflow / self-hosted) — or for
+   this demo, shared via the filesystem (../pacts/).
 
-3. Le backend tourne ses tests de "provider verification" :
-   il démarre l'API, configure les states (e.g. "tariff for prefix 33 exists"),
-   et joue le pact contre lui.
-   → Si le pact est rouge, le PR backend est bloqué.
+3. The backend runs its "provider verification" tests:
+   it starts the API, sets up states (e.g. "tariff for prefix 33 exists"),
+   and plays the pact against it.
+   → If the pact is red, the backend PR is blocked.
 ```
 
-## Bugs intentionnels (pour apprentissage)
+## Intentional bugs (for learning)
 
-Comme dans `pbt-examples-sip/`, un bug est laissé en place pour que les tests le démontrent :
+As in `pbt-examples-sip/`, a bug is left in place for the tests to demonstrate it:
 
-- `api/pricing/pricing.go` — `RateCall` arrondit à la minute supérieure mais a un cas limite à 0 seconde. Le PBT le révèle.
+- `api/pricing/pricing.go` — `RateCall` rounds up to the next minute but has an edge case at 0 seconds. PBT reveals it.
 
-Le bug est commenté `// BUG:` dans le code.
+The bug is commented `// BUG:` in the code.
 
-## Articulation avec les docs
+## Relationship with the docs
 
-- Méthode : `../test-stack-react-go-postgresql.md`
-- PBT : `../property-based-testing-hypothesis-deep-dive.md`
-- Outils déterministes : `../test-generation-from-spec.md`
-- Skill TDD : `../tdd-skill/`
+- Method: `../test-stack-react-go-postgresql.md`
+- PBT: `../property-based-testing-hypothesis-deep-dive.md`
+- Deterministic tools: `../test-generation-from-spec.md`
+- TDD skill: `../tdd-skill/`
 
-## Limites de cette démo
+## Limitations of this demo
 
-- Pas d'auth, pas de pagination, pas de gestion d'erreur sophistiquée — c'est volontaire.
-- Le pact est généré localement et partagé via filesystem ; en prod, utiliser Pactflow ou un broker self-hosted.
-- Le frontend est minimal (un formulaire) — pas de router ni de state management.
-- Mutation testing CI non inclus (template dans `tdd-skill/hooks-*.md`).
+- No auth, no pagination, no sophisticated error handling — this is intentional.
+- The pact is generated locally and shared via filesystem; in production, use Pactflow or a self-hosted broker.
+- The frontend is minimal (a single form) — no router or state management.
+- Mutation testing CI not included (template in `tdd-skill/hooks-*.md`).

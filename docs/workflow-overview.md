@@ -1,83 +1,83 @@
-# Workflow overview — de la spécification à l'exécution
+# Workflow overview — from specification to execution
 
-Vue d'ensemble du workflow proposé dans la série d'articles. Ce document sert de référence pour le lecteur qui souhaite avoir la carte complète sous les yeux.
+Overview of the workflow proposed in the article series. This document serves as a reference for the reader who wants the complete picture at a glance.
 
-## Le workflow en cinq étapes
+## The workflow in five steps
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ 1. SPÉCIFICATION                                             │
-│    Humain formalise l'intention :                            │
+│ 1. SPECIFICATION                                             │
+│    Human formalizes the intent:                              │
 │      • User story → Gherkin                                  │
-│      • Exemples typés (table-driven, fixtures)               │
-│      • Propriétés candidates (invariants, round-trip)        │
+│      • Typed examples (table-driven, fixtures)               │
+│      • Candidate properties (invariants, round-trip)        │
 │      • Contracts / types (icontract, Zod, OpenAPI)           │
 └──────────────────────────────────────────────────────────────┘
                             ↓
 ┌──────────────────────────────────────────────────────────────┐
 │ 2. TESTS                                                     │
-│    Humain écrit (ou valide strictement) les tests AVANT      │
-│    toute écriture de code de production.                     │
-│    Outils déterministes utiles ici :                         │
-│      • Hypothesis ghostwriter (squelettes PBT)               │
-│      • Pynguin / EvoSuite (tests structurels)                │
+│    Human writes (or strictly validates) tests BEFORE         │
+│    any production code is written.                           │
+│    Useful deterministic tools here:                           │
+│      • Hypothesis ghostwriter (PBT skeletons)               │
+│      • Pynguin / EvoSuite (structural tests)                │
 │      • GraphWalker / ModelJUnit (model-based)                │
 └──────────────────────────────────────────────────────────────┘
                             ↓
 ┌──────────────────────────────────────────────────────────────┐
-│ 3. EXÉCUTION IA                                              │
-│    L'agent implémente sous la contrainte des tests :         │
-│      • Un cycle = un test = un commit                        │
-│      • plan.md persistant que l'agent suit                   │
-│      • Règles dures de tdd-skill/agent-discipline.md         │
+│ 3. AI EXECUTION                                              │
+│    The agent implements under the constraint of the tests:   │
+│      • One cycle = one test = one commit                     │
+│      • Persistent plan.md that the agent follows              │
+│      • Hard rules from tdd-skill/agent-discipline.md          │
 └──────────────────────────────────────────────────────────────┘
                             ↓
 ┌──────────────────────────────────────────────────────────────┐
-│ 4. VÉRIFICATION                                              │
-│    Multi-agent (writer + critic) + outils déterministes :    │
-│      • Critic-agent applique la discipline TDD               │
-│      • Mutation testing scoped aux changes                   │
+│ 4. VERIFICATION                                              │
+│    Multi-agent (writer + critic) + deterministic tools:      │
+│      • Critic-agent enforces TDD discipline                  │
+│      • Mutation testing scoped to changes                    │
 │      • Coverage gate (line + branch)                         │
 │      • Lint + smells detector                                │
 └──────────────────────────────────────────────────────────────┘
                             ↓
 ┌──────────────────────────────────────────────────────────────┐
 │ 5. AUDIT                                                     │
-│    Bouclage régulier (mensuel ou trimestriel) :              │
-│      • Niveau 1 statique cheap (15 min)                      │
-│      • Niveau 2 dynamique (heure)                            │
-│      • Niveau 3 IA-assisté (jour)                            │
+│    Regular loop (monthly or quarterly):                      │
+│      • Level 1 static cheap (15 min)                         │
+│      • Level 2 dynamic (1 hour)                              │
+│      • Level 3 AI-assisted (1 day)                           │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-## Mapping articles → étapes
+## Mapping articles → steps
 
-| Article | Étape principale couverte |
+| Article | Main step covered |
 |---|---|
-| 1 — *L'IA n'a pas tué les tests* | Contexte général, pourquoi le workflow |
-| 2 — *La spécification exécutable* | Étape 1 |
-| 3 — *Qui écrit le test, qui écrit le code ?* | Étapes 2 et 3, répartition des rôles |
-| 4 — *Mesurer si les tests valent quelque chose* | Étape 4 (vérification de la qualité) |
-| 5 — *Property-based testing* | Outil-clé des étapes 2 et 4 |
-| 6 — *Mise en pratique React + Go* | Application du workflow à un stack moderne |
-| 7 — *Lancer l'exécution : du plan aux PR* | Étape 3 opérationnelle + étape 5 (audit) |
+| 1 — *AI didn't kill tests* | General context, why the workflow |
+| 2 — *Executable specification* | Step 1 |
+| 3 — *Who writes the test, who writes the code?* | Steps 2 and 3, role distribution |
+| 4 — *Measuring whether tests are worth something* | Step 4 (quality verification) |
+| 5 — *Property-based testing* | Key tool for steps 2 and 4 |
+| 6 — *Putting it into practice: React + Go* | Applying the workflow to a modern stack |
+| 7 — *Launching execution: from plan to PR* | Step 3 in practice + step 5 (audit) |
 
-## Outils référencés dans la série
+## Tools referenced in the series
 
-### Tests, frameworks et runners
-- **Python** : pytest, [Hypothesis](https://hypothesis.readthedocs.io/), [mutmut](https://github.com/boxed/mutmut), [ruff](https://docs.astral.sh/ruff/)
-- **TypeScript / React** : [Vitest](https://vitest.dev/), [React Testing Library](https://testing-library.com/), [MSW](https://mswjs.io/), [fast-check](https://fast-check.dev/), [StrykerJS](https://stryker-mutator.io/)
-- **Go** : `testing` + [testify](https://github.com/stretchr/testify), [testcontainers-go](https://golang.testcontainers.org/), [rapid](https://github.com/flyingmutant/rapid), [gremlins](https://github.com/go-gremlins/gremlins), [golangci-lint](https://golangci-lint.run/)
-- **Cross-stack** : [Pact](https://docs.pact.io/), [Playwright](https://playwright.dev/)
+### Tests, frameworks and runners
+- **Python**: pytest, [Hypothesis](https://hypothesis.readthedocs.io/), [mutmut](https://github.com/boxed/mutmut), [ruff](https://docs.astral.sh/ruff/)
+- **TypeScript / React**: [Vitest](https://vitest.dev/), [React Testing Library](https://testing-library.com/), [MSW](https://mswjs.io/), [fast-check](https://fast-check.dev/), [StrykerJS](https://stryker-mutator.io/)
+- **Go**: `testing` + [testify](https://github.com/stretchr/testify), [testcontainers-go](https://golang.testcontainers.org/), [rapid](https://github.com/flyingmutant/rapid), [gremlins](https://github.com/go-gremlins/gremlins), [golangci-lint](https://golangci-lint.run/)
+- **Cross-stack**: [Pact](https://docs.pact.io/), [Playwright](https://playwright.dev/)
 
-### Outils déterministes de génération de tests
+### Deterministic test generation tools
 - [Hypothesis ghostwriter](https://hypothesis.readthedocs.io/en/latest/reference/integrations.html) — Python
 - [Pynguin](https://pynguin.readthedocs.io/) — Python
 - [EvoSuite](https://www.evosuite.org/) — Java
-- [GraphWalker](https://graphwalker.github.io/) — Multi-langage (model-based testing)
+- [GraphWalker](https://graphwalker.github.io/) — Multi-language (model-based testing)
 - [KLEE](https://klee-se.org/) — C/C++ (symbolic execution)
 
-### Recherche académique citée
+### Academic research cited
 - *Augmented Coding* — Kent Beck (2025)
 - *Spec-Driven Development* — Martin Fowler (2025)
 - *Are Coding Agents Generating Over-Mocked Tests?* — arxiv 2602.00409 (2025)
@@ -85,22 +85,22 @@ Vue d'ensemble du workflow proposé dans la série d'articles. Ce document sert 
 - *Agentic Property-Based Testing* — arxiv 2510.09907 (2025)
 - *Multi-Agent Verification* — arxiv 2502.20379 (2025)
 
-## Où trouver quoi dans ce dépôt
+## Where to find what in this repository
 
 ```
 spec-to-tests/
 │
-├── tdd-skill/                              ← étapes 3-4
-│   Règles dures pour discipliner l'agent IA :
+├── tdd-skill/                              ← steps 3-4
+│   Hard rules to discipline the AI agent:
 │   agent-discipline.md, plan-template.md, hooks-*.md
 │
-├── examples/pbt-sip/                       ← étapes 2 (article 5)
-│   Démo Hypothesis sur un parseur SIP et un dialog FSM.
-│   Inclut des bugs intentionnels que le PBT trouve.
+├── examples/pbt-sip/                       ← step 2 (article 5)
+│   Hypothesis demo on a SIP parser and a dialog FSM.
+│   Includes intentional bugs that PBT finds.
 │
-├── examples/billing-react-go/              ← étape 6 (article 6)
-│   Mini-application React + Go avec testcontainers,
-│   MSW et Pact. Le stack complet du workflow.
+├── examples/billing-react-go/              ← step 6 (article 6)
+│   Mini React + Go application with testcontainers,
+│   MSW and Pact. The full workflow stack.
 │
-└── docs/workflow-overview.md               ← ce document
+└── docs/workflow-overview.md               ← this document
 ```

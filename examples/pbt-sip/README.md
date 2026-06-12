@@ -1,69 +1,69 @@
 ---
 date: 2026-05-20
-contexte: Exemples PBT/Hypothesis appliqués à un mini parser SIP et un dialog SIP stateful
-but: démontrer concrètement que Hypothesis trouve des bugs subtils sur du code "qui marche"
+context: PBT/Hypothesis examples applied to a mini SIP parser and a stateful SIP dialog
+purpose: concretely demonstrate that Hypothesis finds subtle bugs in code that "works"
 ---
 
 # pbt-examples-sip
 
-Deux exemples runnables qui illustrent ce que le PBT apporte sur ton terrain (VoIP/SIP) :
+Two runnable examples that illustrate what PBT brings to your domain (VoIP/SIP):
 
-1. **`sip_message.py` + `test_sip_roundtrip.py`** — parser/formatter SIP simplifié.
-   Round-trip property : `parse(format(msg)) == msg`. Bug inclus volontairement, à découvrir.
+1. **`sip_message.py` + `test_sip_roundtrip.py`** — simplified SIP parser/formatter.
+   Round-trip property: `parse(format(msg)) == msg`. Bug included intentionally, to be discovered.
 
-2. **`dialog.py` + `test_dialog_stateful.py`** — FSM dialog SIP (EARLY → CONFIRMED → TERMINATED) avec un `RuleBasedStateMachine`. Bug inclus volontairement, à découvrir.
+2. **`dialog.py` + `test_dialog_stateful.py`** — SIP dialog FSM (EARLY → CONFIRMED → TERMINATED) with a `RuleBasedStateMachine`. Bug included intentionally, to be discovered.
 
-Les bugs ne sont pas dissimulés méchamment : ce sont des erreurs typiques que l'humain ou l'IA produisent sans s'en apercevoir avec des tests example-based, et que Hypothesis trouve en < 30 secondes.
+The bugs are not hidden maliciously: they are typical errors that humans or AI produce without noticing with example-based tests, and that Hypothesis finds in < 30 seconds.
 
 ## Installation
 
 ```bash
-cd /home/mwolff/MW/01_PERSONNEL/IA-chats/dev-ia-methods/pbt-examples-sip
+cd examples/pbt-sip
 python -m venv .venv
-source .venv/bin/activate.fish   # ou .venv/bin/activate pour bash
+source .venv/bin/activate   # or .venv/bin/activate.fish for fish
 pip install -r requirements.txt
 ```
 
-## Lancer les tests
+## Running the tests
 
 ```bash
 pytest -v
 ```
 
-Sortie attendue (spoiler) : **les deux suites trouvent un échec et fournissent un contre-exemple minimal**.
+Expected output (spoiler): **both suites find a failure and provide a minimal counter-example**.
 
-Pour ne lancer que le round-trip :
+To run only the round-trip suite:
 
 ```bash
 pytest test_sip_roundtrip.py -v
 ```
 
-Pour ne lancer que le stateful :
+To run only the stateful suite:
 
 ```bash
 pytest test_dialog_stateful.py -v
 ```
 
-## Voir ce que Hypothesis fait
+## Seeing what Hypothesis does
 
 ```bash
 pytest -v --hypothesis-show-statistics
 ```
 
-Affiche : nombre d'exemples générés, taux d'acceptation, shrinking, exemples sauvés en base.
+Displays: number of examples generated, acceptance rate, shrinking, examples saved to the database.
 
-## Une fois les bugs trouvés
+## Once the bugs are found
 
-Pour réparer puis re-tester :
+To fix and re-test:
 
-1. Lis le contre-exemple minimal que Hypothesis affiche.
-2. Corrige `sip_message.py` ou `dialog.py` (le bug est commenté `# BUG:` dans le code).
-3. Relance — les tests doivent passer.
+1. Read the minimal counter-example that Hypothesis displays.
+2. Fix `sip_message.py` or `dialog.py` (the bug is commented `# BUG:` in the code).
+3. Re-run — the tests should pass.
 
-Hypothesis sauvegarde les contre-exemples dans `.hypothesis/examples/` : les bugs trouvés seront re-testés en priorité au prochain run (régression-test automatique). À committer ou .gitignore selon ta préférence.
+Hypothesis saves counter-examples in `.hypothesis/examples/`: found bugs will be re-tested with priority on the next run (automatic regression testing). Commit or .gitignore as you prefer.
 
-## Lien avec le reste du dossier
+## Link with the rest of the repository
 
-- Le deep-dive théorique : `../property-based-testing-hypothesis-deep-dive.md`
-- Le skill TDD : `../tdd-skill/`
-- Le survey outils : `../test-quality-tools-survey.md`
+- The theoretical deep-dive: `../property-based-testing-hypothesis-deep-dive.md`
+- The TDD skill: `../tdd-skill/`
+- The tools survey: `../test-quality-tools-survey.md`
