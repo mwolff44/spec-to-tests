@@ -1,48 +1,48 @@
 # spec-to-tests
 
-> Matériel runnable accompagnant la série d'articles
-> **["De la spécification à l'exécution — un workflow pour fiabiliser le code à l'ère IA"](https://www.blog-des-telecoms.com/blog/ia-tests-indispensables-workflow/)**
-> sur [blog-des-telecoms.com](https://blog-des-telecoms.com/).
+> Runnable companion material for the article series
+> **["From Specification to Execution — a workflow for reliable code in the AI era"](https://www.blog-des-telecoms.com/blog/ia-tests-indispensables-workflow/)**
+> on [blog-des-telecoms.com](https://blog-des-telecoms.com/).
 
-L'idée centrale de la série : à l'ère des agents IA capables de générer du code en quelques secondes, la qualité ne se joue plus sur l'écriture du code, mais sur la **spécification** en amont et sur les **tests** qui guident l'agent. Ce dépôt rassemble les démos, *skills* et exemples concrets pour mettre en pratique ce workflow.
+The central idea of the series: in the age of AI agents capable of generating code in seconds, quality is no longer about writing code — it's about the **specification** upstream and the **tests** that guide the agent. This repository gathers demos, *skills*, and concrete examples to put this workflow into practice.
 
-## Contenu
+## Contents
 
 ```
 spec-to-tests/
-├── tdd-skill/                    Skill TDD étendu pour Claude Code,
-│                                 hardened pour discipliner les agents IA.
-│                                 Fork du skill de Matt Pocock.
+├── tdd-skill/                    Extended TDD skill for Claude Code,
+│                                 hardened to discipline AI agents.
+│                                 Fork of Matt Pocock's skill.
 │
 ├── examples/
-│   ├── pbt-sip/                  Property-based testing avec Hypothesis
-│   │                             sur un parseur SIP et un dialog FSM SIP.
-│   │                             Démontre stateful PBT en contexte télécom.
+│   ├── pbt-sip/                  Property-based testing with Hypothesis
+│   │                             on a SIP parser and a SIP dialog FSM.
+│   │                             Demonstrates stateful PBT in a telecom context.
 │   │
-│   └── billing-react-go/         Démo full-stack — React + Go (Gin/GORM/PostgreSQL)
-│                                 avec Vitest+RTL+MSW, testcontainers-go,
-│                                 et contract testing Pact (consumer/provider).
+│   └── billing-react-go/         Full-stack demo — React + Go (Gin/GORM/PostgreSQL)
+│                                 with Vitest+RTL+MSW, testcontainers-go,
+│                                 and Pact contract testing (consumer/provider).
 │
 └── docs/
-    └── workflow-overview.md      Vue d'ensemble du workflow,
-                                  référencée depuis les articles du blog.
+    └── workflow-overview.md      Workflow overview,
+                                  referenced from the blog articles.
 ```
 
-## Articles de la série
+## Articles in the series
 
-| # | Titre | Lien |
+| # | Title | Link |
 |---|---|---|
-| 1 | L'IA n'a pas tué les tests, elle les rend indispensables | [Article 1](https://www.blog-des-telecoms.com/blog/ia-tests-indispensables-workflow/) |
-| 2 | La spécification exécutable : ce que vous donnez à lire à l'humain et à l'IA | [Article 2](https://www.blog-des-telecoms.com/blog/specification-executable-gherkin-proprietes/) |
-| 3 | Qui écrit le test, qui écrit le code ? La répartition humain / IA / outils | [à venir] |
-| 4 | Mesurer si les tests valent quelque chose : les 4 axes | [à venir] |
-| 5 | Property-based testing : la défense contre les oracles faibles | [à venir] |
-| 6 | Mise en pratique : React + Go (Gin / GORM / PostgreSQL) | [à venir] |
-| 7 | Lancer l'exécution : du plan aux PR | [à venir] |
+| 1 | AI didn't kill tests, it made them indispensable | [Article 1](https://www.blog-des-telecoms.com/blog/ia-tests-indispensables-workflow/) |
+| 2 | Executable specification: what you give humans and AI to read | [Article 2](https://www.blog-des-telecoms.com/blog/specification-executable-gherkin-proprietes/) |
+| 3 | Who writes the test, who writes the code? The human / AI / tools split | [coming soon] |
+| 4 | Measuring whether tests are worth something: the 4 axes | [coming soon] |
+| 5 | Property-based testing: the defense against weak oracles | [coming soon] |
+| 6 | Putting it into practice: React + Go (Gin / GORM / PostgreSQL) | [coming soon] |
+| 7 | Launching execution: from plan to PR | [coming soon] |
 
-## Démarrage rapide
+## Quick start
 
-### 1. Property-based testing sur SIP (Python)
+### 1. Property-based testing on SIP (Python)
 
 ```bash
 cd examples/pbt-sip
@@ -52,13 +52,13 @@ pip install -r requirements.txt
 pytest -v --hypothesis-show-statistics
 ```
 
-Deux suites :
-- `test_sip_roundtrip.py` — round-trip property sur un parseur SIP.
-- `test_dialog_stateful.py` — `RuleBasedStateMachine` sur un dialog FSM SIP.
+Two suites:
+- `test_sip_roundtrip.py` — round-trip property on a SIP parser.
+- `test_dialog_stateful.py` — `RuleBasedStateMachine` on a SIP dialog FSM.
 
-Les deux contiennent un bug intentionnel que Hypothesis découvre en quelques millisecondes. Voir le README du dossier pour les détails et l'exercice de correction.
+Both contain an intentional bug that Hypothesis finds in milliseconds. See the folder README for details and the fix exercise.
 
-### 2. Billing React + Go avec Pact (full-stack)
+### 2. Billing React + Go with Pact (full-stack)
 
 ```bash
 cd examples/billing-react-go
@@ -66,51 +66,51 @@ cd examples/billing-react-go
 cd api && go mod tidy && go test -race ./pricing/... ./handlers/...
 cd ../frontend && pnpm install && pnpm test
 # Contract testing
-pnpm test:pact                       # consumer (génère le pact)
-cd ../api && go test -tags=pact ./pacts/...   # provider (vérifie le pact)
-# E2E complet via Docker
+pnpm test:pact                       # consumer (generates the pact)
+cd ../api && go test -tags=pact ./pacts/...   # provider (verifies the pact)
+# Full E2E via Docker
 cd .. && docker compose up --build
 ```
 
-### 3. Utiliser le skill TDD avec Claude Code
+### 3. Using the TDD skill with Claude Code
 
 ```bash
 cp -r tdd-skill ~/.claude/skills/
-# Dans Claude Code, invoquer via mention TDD ou explicitement.
+# In Claude Code, invoke via TDD mention or explicitly.
 ```
 
-Le skill apporte :
-- Une discipline `agent-discipline.md` en 10 règles dures.
-- Un artefact `plan.md` que l'agent suit.
-- Des templates de *hooks* (pre-commit, RED-must-fail-first, mutation testing CI).
+The skill provides:
+- An `agent-discipline.md` with 10 hard rules.
+- A `plan.md` artifact that the agent follows.
+- *Hook* templates (pre-commit, RED-must-fail-first, mutation testing CI).
 
 ## Attribution
 
-Le dossier `tdd-skill/` est un **fork étendu** du *skill* TDD de Matt Pocock — [`mattpocock/skills`](https://github.com/mattpocock/skills/tree/main/skills/engineering/tdd). Les ajouts (discipline agent, plan persistant, *hooks* par langage, mutation testing CI) sont documentés dans `tdd-skill/README.md`. Tous les apports originaux de Pocock sont conservés et clairement crédités.
+The `tdd-skill/` folder is an **extended fork** of Matt Pocock's TDD skill — [`mattpocock/skills`](https://github.com/mattpocock/skills/tree/main/skills/engineering/tdd). The additions (agent discipline, persistent plan, per-language *hooks*, mutation testing CI) are documented in `tdd-skill/README.md`. All of Pocock's original contributions are preserved and clearly credited.
 
-Les démos `pbt-sip/` et `billing-react-go/` sont originales.
+The `pbt-sip/` and `billing-react-go/` demos are original.
 
-## Licence
+## License
 
-[MIT](LICENSE) — utilisation, modification et redistribution libres, y compris commerciales. Attribution appréciée.
+[MIT](LICENSE) — free to use, modify, and redistribute, including commercially. Attribution appreciated.
 
-## Comment contribuer
+## How to contribute
 
-Issues et pull requests bienvenues. Quelques angles ouverts :
+Issues and pull requests are welcome. A few open angles:
 
-- Portage des démos sur d'autres stacks (Vue, Svelte, FastAPI, Spring Boot…).
-- Adaptation du `tdd-skill/` à d'autres environnements agent (Cursor, Aider, OpenCode).
-- Cas d'usage métier supplémentaires pour le PBT stateful (FSM dialplan, état RTP, etc.).
-- Retours d'expérience sur l'application du workflow en production.
+- Porting the demos to other stacks (Vue, Svelte, FastAPI, Spring Boot…).
+- Adapting `tdd-skill/` to other agent environments (Cursor, Aider, OpenCode).
+- Additional business use cases for stateful PBT (dialplan FSM, RTP state, etc.).
+- Feedback on applying the workflow in production.
 
-Avant toute PR conséquente, ouvrez une issue pour discuter de l'angle.
+Before any substantial PR, please open an issue to discuss the approach.
 
-## Auteur
+## Author
 
-**Mathias Wolff** — architecte télécom chez [Wazo](https://wazo.io), animateur du [blog des télécoms](https://blog-des-telecoms.com).
+**Mathias Wolff** — telecom architect at [Wazo](https://wazo.io), author of the [blog des télécoms](https://blog-des-telecoms.com).
 [LinkedIn](https://www.linkedin.com/in/mathias-wolff-47a7941/) · [Celea Consulting](https://celea.org)
 
-## Aller plus loin
+## Going further
 
 - [Kent Beck — *Augmented Coding: Beyond the Vibes* (2025)](https://signals.aktagon.com/articles/2025/09/augmented-coding-beyond-the-vibes/)
 - [Martin Fowler — *Exploring Gen AI: Spec-Driven Development* (2025)](https://martinfowler.com/tags/testing.html)
