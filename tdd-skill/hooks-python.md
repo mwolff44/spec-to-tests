@@ -26,6 +26,74 @@ Then drop the `.pre-commit-config.yaml` snippets shown below into the repo root.
 
 ---
 
+## §0. Hardened all-in-one gate (recommended)
+
+`scripts/tdd-verify-cycle.sh` replaces the *self-reported* pair below (§1 marker
+guard + §2 `tdd-red.sh`) with a single pre-commit that **proves** the cycle
+instead of trusting the agent's narration. It folds three gates into one
+chokepoint (the commit):
+
+- **A — cycle declaration is mandatory.** Production code staged with no
+  `.tdd-cycle` is rejected. This closes the escape hatch of §1 (whose
+  `[[ -f marker ]] || exit 0` meant "no marker ⇒ pass"): the default is now
+  *deny*, and an agent cannot bypass the guard by simply not declaring a cycle.
+- **B — test-modification guard (§1).** Staged changes to any test file other
+  than the declared cycle test are rejected.
+- **C — RED→GREEN proof (§2, §5).** With the staged production code reverted to
+  its HEAD state the cycle test *must fail*; with it restored the test *must
+  pass*. The ordering is verified deterministically at commit time. The old
+  "wrong-reason" grep is dropped from RED (a missing-symbol `ImportError` is a
+  legitimate Python RED); genuine wiring breakage persists into GREEN and is
+  caught there instead — no false rejects on the normal Python flow.
+
+It touches only the worktree copies of the staged src files (backed up and
+restored byte-for-byte), so untracked files and unrelated unstaged edits are
+never disturbed — no `git stash`, no pop-conflict, no data-loss hazard.
+
+**Wire it:**
+
+```yaml
+# .pre-commit-config.yaml
+repos:
+  - repo: local
+    hooks:
+      - id: tdd-verify-cycle
+        name: TDD RED→GREEN proof (hardened)
+        entry: tdd-skill/scripts/tdd-verify-cycle.sh
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+```
+
+Or as a plain hook: `cp tdd-skill/scripts/tdd-verify-cycle.sh .git/hooks/pre-commit`.
+
+**Agent workflow** (simpler than before — the RED proof is no longer the agent's
+job to run):
+
+```bash
+echo 'tests/test_x.py::test_y' > .tdd-cycle   # declare the cycle test (node id)
+# write the test, write the code
+git add tests/test_x.py src/x.py
+git commit -m 'test+feat: T1'                 # hook proves RED then GREEN
+rm .tdd-cycle
+# behavior-preserving change? declare a refactor commit instead:
+echo 'refactor' > .tdd-cycle                  # GREEN-only: suite must stay green
+```
+
+**Config** (env): `TDD_SRC_DIR` (default `src`), `TDD_TEST_DIR` (default
+`tests`), `TDD_PYTEST` (default `pytest`).
+
+**Limits.** `git commit --no-verify` bypasses it, like any pre-commit — the hard
+backstop is the CI gate (§4/§5), unreachable by `--no-verify`. And an
+import-driven RED can still hide an assertion-vacuous test (`assert True` next to
+a real import): that residual "test theatre" is what mutation testing (§4) exists
+to kill. This gate proves *ordering*, not *assertion quality*.
+
+The three mechanisms below (§1, §2) remain documented as the lightweight,
+self-reported variant — use them only if you cannot run tests in the pre-commit.
+
+---
+
 ## §1. Detect test modification during a Green cycle
 
 **Plain hook** — `.git/hooks/pre-commit` (chmod +x):
@@ -328,13 +396,22 @@ session uses the inverse (write to `src/` only, read tests as text).
 
 ---
 
-## Minimum viable Python setup (3 things)
+## Minimum viable Python setup (2 things)
 
-If you adopt only three:
+If you adopt only two:
 
-1. `pre-commit` with `tdd-cycle-guard.sh` (§1).
-2. `scripts/tdd-red.sh` invoked manually before each Green (§2).
-3. `mutmut` GitHub Action on PRs (§4).
+1. `scripts/tdd-verify-cycle.sh` as the pre-commit (§0) — folds §1 + §2 into a
+   single proven RED→GREEN gate, with the escape hatch closed.
+2. `mutmut` GitHub Action on PRs (§4) — the assertion-quality backstop that a
+   commit-time gate cannot provide, and the layer `--no-verify` cannot skip.
 
-This covers the three documented AI-agent failure modes in TDD with under
-150 lines of project configuration.
+This covers the three documented AI-agent failure modes in TDD:
+
+| Failure mode | Source | Defended by |
+|---|---|---|
+| Suppression / mod of tests | Beck 2025 | §0 gate B |
+| Code without a failing test first | Martin (Three Laws) | §0 gate A + C |
+| Perpetually-green / vacuous tests | ThoughtWorks Radar v33 | §0 gate C + §4 |
+
+If you cannot run tests inside the pre-commit (too slow, no env), fall back to
+the lightweight self-reported pair §1 + §2 plus §4.
