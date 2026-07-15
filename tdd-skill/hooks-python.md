@@ -28,17 +28,23 @@ Then drop the `.pre-commit-config.yaml` snippets shown below into the repo root.
 
 ## §0. Hardened all-in-one gate (recommended)
 
-`scripts/tdd-verify-cycle.sh` replaces the *self-reported* pair below (§1 marker
-guard + §2 `tdd-red.sh`) with a single pre-commit that **proves** the cycle
-instead of trusting the agent's narration. It folds three gates into one
-chokepoint (the commit):
+`scripts/tdd-verify-cycle.sh` is **one language-agnostic script** (pick a preset
+with `TDD_LANG=python|go|ts`, see [hooks-go.md](hooks-go.md) §0 /
+[hooks-typescript.md](hooks-typescript.md) §0). It replaces the *self-reported*
+pair below (§1 marker guard + §2 `tdd-red.sh`) with a single pre-commit that
+**proves** the cycle instead of trusting the agent's narration. It folds three
+gates into one chokepoint (the commit):
 
 - **A — cycle declaration is mandatory.** Production code staged with no
   `.tdd-cycle` is rejected. This closes the escape hatch of §1 (whose
   `[[ -f marker ]] || exit 0` meant "no marker ⇒ pass"): the default is now
   *deny*, and an agent cannot bypass the guard by simply not declaring a cycle.
-- **B — test-modification guard (§1).** Staged changes to any test file other
-  than the declared cycle test are rejected.
+- **B — test-modification guard (§1).** In a cycle commit a test file may only
+  *grow*: a new file, or a **purely additive** diff to an existing one, is fine
+  (that is how you author the cycle's test). Deleting a test, or a diff that
+  removes/changes existing lines in one, is rejected — that is the "alter a test
+  to make code pass" violation. Distinguished at the diff level, so no need to
+  know which file is "the cycle test" (works for colocated Go/React tests too).
 - **C — RED→GREEN proof (§2, §5).** With the staged production code reverted to
   its HEAD state the cycle test *must fail*; with it restored the test *must
   pass*. The ordering is verified deterministically at commit time. The old
@@ -80,8 +86,11 @@ rm .tdd-cycle
 echo 'refactor' > .tdd-cycle                  # GREEN-only: suite must stay green
 ```
 
-**Config** (env): `TDD_SRC_DIR` (default `src`), `TDD_TEST_DIR` (default
-`tests`), `TDD_PYTEST` (default `pytest`).
+**Config** (env): `TDD_LANG=python` (default) sets the file-classification
+regexes and runner. Override any knob directly: `TDD_TEST_RE`, `TDD_SRC_RE`,
+`TDD_RUN` (template for one selector, references `"$sel"`), `TDD_RUN_ALL`. The
+Python preset classifies `test_*.py` / `*_test.py` / anything under `tests/` as
+tests, everything else `*.py` as production, and runs `pytest "$sel"`.
 
 **Limits.** `git commit --no-verify` bypasses it, like any pre-commit — the hard
 backstop is the CI gate (§4/§5), unreachable by `--no-verify`. And an
