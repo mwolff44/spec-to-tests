@@ -154,10 +154,10 @@ The bug is commented `// BUG:` in the code.
 
 ## Relationship with the docs
 
-- Method: `../test-stack-react-go-postgresql.md`
-- PBT: `../property-based-testing-hypothesis-deep-dive.md`
-- Deterministic tools: `../test-generation-from-spec.md`
-- TDD skill: `../tdd-skill/`
+- Method: `../../docs/test-stack-react-go-postgresql.md`
+- PBT: `../../docs/property-based-testing-hypothesis-deep-dive.md`
+- Deterministic tools: `../../docs/test-generation-from-spec.md`
+- TDD skill: `../../tdd-skill/`
 
 ## Limitations of this demo
 

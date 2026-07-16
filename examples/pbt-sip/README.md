@@ -64,6 +64,6 @@ Hypothesis saves counter-examples in `.hypothesis/examples/`: found bugs will be
 
 ## Link with the rest of the repository
 
-- The theoretical deep-dive: `../property-based-testing-hypothesis-deep-dive.md`
-- The TDD skill: `../tdd-skill/`
-- The tools survey: `../test-quality-tools-survey.md`
+- The theoretical deep-dive: `../../docs/property-based-testing-hypothesis-deep-dive.md`
+- The TDD skill: `../../tdd-skill/`
+- The tools survey: `../../docs/test-quality-tools-survey.md`
