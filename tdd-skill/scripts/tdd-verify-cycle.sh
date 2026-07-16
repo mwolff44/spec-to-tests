@@ -153,7 +153,12 @@ if [[ -z "$staged_src" ]]; then
   exit 0
 fi
 
-command -v "${TDD_RUN%% *}" >/dev/null 2>&1 || die "runner '${TDD_RUN%% *}' not found on PATH."
+# Sanity-check the runner binary only when the template starts with a plain
+# command word; skip for compound templates like '(cd sub && go test ...)'.
+_runner_bin="${TDD_RUN%% *}"
+if [[ "$_runner_bin" =~ ^[A-Za-z0-9_./-]+$ ]]; then
+  command -v "$_runner_bin" >/dev/null 2>&1 || die "runner '$_runner_bin' not found on PATH."
+fi
 git rev-parse --verify -q HEAD >/dev/null || die "no HEAD commit; cannot verify RED against a baseline."
 
 # We only ever mutate the worktree copy of the STAGED src files (to swap between

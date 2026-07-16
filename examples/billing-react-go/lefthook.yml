@@ -1,0 +1,40 @@
+# TDD RED→GREEN gate (§0) wired for this polyglot demo.
+#
+# billing-react-go has two sub-projects — Go under api/, TypeScript under
+# frontend/ — so the shared tdd-skill/scripts/tdd-verify-cycle.sh is invoked
+# twice, each command scoped to one language. On any given commit only the
+# command whose production files are staged does real work; the other sees no
+# production files of its language and exits 0 (no-op). A clean TDD cycle
+# touches one language, so this is unambiguous.
+#
+# The `run:` path (../../tdd-skill/scripts/...) is monorepo-relative: it works
+# when you `git init` inside this folder and `lefthook install` here. In a
+# STANDALONE project, vendor the script (e.g. `cp .../tdd-verify-cycle.sh
+# scripts/`) and point `run:` at `./scripts/tdd-verify-cycle.sh`.
+#
+# Declare the cycle before committing production code:
+#   Go:  echo './pricing::TestRateCall_RoundsUp' > .tdd-cycle
+#   TS:  echo 'RateCalculator shows the cost' > .tdd-cycle
+#   refactor (either): echo 'refactor' > .tdd-cycle
+
+pre-commit:
+  commands:
+    tdd-go:
+      env:
+        TDD_LANG: custom
+        TDD_SRC_RE: '^api/.*\.go$'
+        TDD_TEST_RE: '_test\.go$'
+        # selector = <pkg>::<TestName>, pkg relative to api/
+        TDD_RUN: '(cd api && go test -count=1 -run "^${sel##*::}$" "${sel%%::*}")'
+        TDD_RUN_ALL: '(cd api && go test ./...)'
+      run: ../../tdd-skill/scripts/tdd-verify-cycle.sh
+
+    tdd-ts:
+      env:
+        TDD_LANG: custom
+        # only frontend/src is production; configs (vite/vitest.*.ts) are excluded
+        TDD_SRC_RE: '^frontend/src/.*\.(ts|tsx)$'
+        TDD_TEST_RE: '\.(test|spec)\.(ts|tsx)$'
+        TDD_RUN: '(cd frontend && npx vitest --run -t "$sel" --reporter=dot)'
+        TDD_RUN_ALL: '(cd frontend && npx vitest --run --reporter=dot)'
+      run: ../../tdd-skill/scripts/tdd-verify-cycle.sh

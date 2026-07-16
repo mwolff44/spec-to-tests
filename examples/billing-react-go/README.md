@@ -127,6 +127,47 @@ pnpm --dir frontend playwright test
 docker compose down
 ```
 
+## Enforcing the RED→GREEN cycle (§0 gate)
+
+This demo wires the hardened pre-commit gate from
+[`tdd-skill/scripts/tdd-verify-cycle.sh`](../../tdd-skill/scripts/tdd-verify-cycle.sh)
+via [`lefthook.yml`](lefthook.yml). The gate **proves** the cycle at commit time
+(the staged production code is reverted to HEAD, the test must fail; restored, it
+must pass) instead of trusting that tests were written first. See
+[`tdd-skill/hooks-python.md`](../../tdd-skill/hooks-python.md) §0 for the full
+rationale.
+
+Because the project is polyglot, `lefthook.yml` runs the gate twice — once scoped
+to Go (`api/`, `*_test.go`), once to TS (`frontend/src/`, `*.{test,spec}.tsx`).
+On any commit, only the command whose production files are staged does real work;
+the other sees no production files of its language and no-ops. A clean cycle
+touches one language.
+
+```bash
+# one-time, treating this folder as its own repo:
+git init && lefthook install
+
+# Go cycle:
+echo './pricing::TestRateCall_RoundsUp' > .tdd-cycle
+git add api/pricing/pricing.go api/pricing/pricing_test.go
+git commit -m 'test+feat(pricing): round up to the next minute'   # gate proves RED→GREEN
+rm .tdd-cycle
+
+# TS cycle:
+echo 'RateCalculator shows the cost' > .tdd-cycle
+git add frontend/src/components/RateCalculator.tsx frontend/src/components/RateCalculator.test.tsx
+git commit -m 'test+feat: show the cost'
+rm .tdd-cycle
+
+# behaviour-preserving change (either language):
+echo 'refactor' > .tdd-cycle
+```
+
+The `run:` path in `lefthook.yml` is monorepo-relative (`../../tdd-skill/…`); in a
+standalone project you would vendor the script (e.g. into `scripts/`) and point
+`run:` at it. `--no-verify` bypasses the gate, like any pre-commit — the hard
+backstop is the mutation-testing CI (see below).
+
 ## Pact workflow
 
 The end-to-end pattern:
