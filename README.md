@@ -82,7 +82,11 @@ cp -r tdd-skill ~/.claude/skills/
 The skill provides:
 - An `agent-discipline.md` with 10 hard rules.
 - A `plan.md` artifact that the agent follows.
-- *Hook* templates (pre-commit, RED-must-fail-first, mutation testing CI).
+- `scripts/tdd-verify-cycle.sh` — a hardened pre-commit that **proves** the
+  RED→GREEN cycle at commit time (not self-reported), for Python/Go/TS.
+- Per-language *hook* templates and a mutation-testing CI gate.
+- `driver-state-machine.md` — the loop as an explicit FSM (reference / blueprint
+  for an autonomous driver).
 
 ## Attribution
 
