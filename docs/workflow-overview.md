@@ -30,6 +30,8 @@ Overview of the workflow proposed in the article series. This document serves as
 │      • One cycle = one test = one commit                     │
 │      • Persistent plan.md that the agent follows              │
 │      • Hard rules from tdd-skill/agent-discipline.md          │
+│      • RED→GREEN proven at commit by the §0 pre-commit gate   │
+│        (tdd-skill/scripts/tdd-verify-cycle.sh)                │
 └──────────────────────────────────────────────────────────────┘
                             ↓
 ┌──────────────────────────────────────────────────────────────┐
@@ -92,7 +94,9 @@ spec-to-tests/
 │
 ├── tdd-skill/                              ← steps 3-4
 │   Hard rules to discipline the AI agent:
-│   agent-discipline.md, plan-template.md, hooks-*.md
+│   agent-discipline.md, plan-template.md, hooks-*.md,
+│   scripts/tdd-verify-cycle.sh (proven RED→GREEN gate,
+│   Python/Go/TS), driver-state-machine.md (FSM reference)
 │
 ├── examples/pbt-sip/                       ← step 2 (article 5)
 │   Hypothesis demo on a SIP parser and a dialog FSM.

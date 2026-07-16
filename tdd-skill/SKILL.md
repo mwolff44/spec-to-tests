@@ -172,3 +172,4 @@ These are encoded in [agent-discipline.md](agent-discipline.md) and ideally enfo
 - [interface-design.md](interface-design.md) — designing for testability.
 - [deep-modules.md](deep-modules.md) — Ousterhout's principle.
 - [refactoring.md](refactoring.md) — refactor candidates + mutation testing.
+- [driver-state-machine.md](driver-state-machine.md) — the loop as an explicit FSM (reference / autonomous blueprint).

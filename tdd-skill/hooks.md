@@ -16,6 +16,17 @@ All three language files implement the same six mechanisms below, with
 identical numbering. Same numbering is intentional — when you say "§2 RED gate"
 in conversation, it means the same thing regardless of stack.
 
+## §0 — the recommended default (one script, all languages)
+
+`scripts/tdd-verify-cycle.sh` folds §1 (test-mod guard) and §2 (RED gate) into a
+single pre-commit that **proves** RED→GREEN at commit time instead of trusting
+the agent's narration, and closes the `[[ -f marker ]] || exit 0` escape hatch.
+One script serves all three stacks via `TDD_LANG=python|go|ts` (files classified
+by suffix, so colocated Go/React tests work). Details and wiring in each language
+file's §0. The six mechanisms below remain the à-la-carte / legacy reference; in
+particular §1 and §2 are the lightweight self-reported variant for setups that
+cannot run tests inside the pre-commit.
+
 ## The six mechanisms
 
 ### §1. Detect test modification during a Green cycle

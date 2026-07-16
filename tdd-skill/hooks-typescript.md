@@ -33,7 +33,49 @@ pnpm exec husky init
 
 ---
 
+## §0. Hardened all-in-one gate (recommended)
+
+Use the shared `scripts/tdd-verify-cycle.sh` with `TDD_LANG=ts`. It proves the
+RED→GREEN ordering at commit time instead of trusting the agent — see
+[hooks-python.md](hooks-python.md) §0 for the full rationale (gates A/B/C, the
+closed escape hatch, the byte-for-byte worktree safety). TS/React specifics:
+
+- **Colocated tests.** Classified by suffix: `*.{test,spec}.{ts,tsx,js,jsx}` are
+  tests, other `*.{ts,tsx,js,jsx}` are production — so `Component.test.tsx`
+  sitting next to `Component.tsx` works, no `src/`-vs-`tests/` split needed.
+- **Selector = vitest `-t` pattern.** The marker holds the test-name pattern,
+  e.g. `checkout happy path`; the preset runs
+  `npx vitest --run -t 'checkout happy path' --reporter=dot`.
+- **Reporter.** The preset uses `--reporter=dot` (the old `basic` reporter was
+  removed from current vitest — see the note in §2).
+
+```yaml
+# lefthook.yml
+pre-commit:
+  commands:
+    tdd-verify-cycle:
+      env: { TDD_LANG: ts }
+      run: ./tdd-skill/scripts/tdd-verify-cycle.sh
+```
+
+Agent workflow:
+
+```bash
+echo 'checkout happy path' > .tdd-cycle
+git add src/checkout.ts src/checkout.test.ts
+TDD_LANG=ts git commit -m 'test+feat: checkout happy path'  # proves RED then GREEN
+rm .tdd-cycle
+```
+
+For **Jest**, override the runner:
+`TDD_RUN='npx jest -t "$sel"' TDD_RUN_ALL='npx jest'`.
+
+---
+
 ## §1. Detect test modification during a Green cycle
+
+> Legacy self-reported variant — prefer §0. Kept for setups that cannot run the
+> test runner inside the pre-commit.
 
 **Plain hook** — `.git/hooks/pre-commit` (chmod +x):
 
@@ -106,7 +148,8 @@ TEST_PATTERN="${1:?usage: tdd-red.sh <vitest test name pattern>}"
 LOG="$(mktemp)"
 
 # vitest: -t selects by test name, --run disables watch
-if pnpm exec vitest --run -t "$TEST_PATTERN" --reporter=basic > "$LOG" 2>&1; then
+# (use --reporter=dot; the `basic` reporter was removed from recent vitest)
+if pnpm exec vitest --run -t "$TEST_PATTERN" --reporter=dot > "$LOG" 2>&1; then
   echo "ERROR: test passed on first run — discipline §2. STOP and investigate." >&2
   cat "$LOG" >&2
   exit 1
@@ -339,13 +382,13 @@ Inverse for the implementer session (`src/**/*.ts` writeable, tests read-only).
 
 ---
 
-## Minimum viable TS setup (3 things)
+## Minimum viable TS setup (2 things)
 
-1. `lefthook` (or `husky`) running `tdd-cycle-guard.sh` (§1).
-2. `scripts/tdd-red.sh` invoked manually before each Green (§2).
-3. StrykerJS GitHub Action with `thresholds.break: 60` and incremental cache (§4).
+1. `scripts/tdd-verify-cycle.sh` as pre-commit with `TDD_LANG=ts` (§0) — proven
+   RED→GREEN, escape hatch closed, folds §1 + §2.
+2. StrykerJS GitHub Action with `thresholds.break: 60` and incremental cache (§4)
+   — the assertion-quality backstop `--no-verify` can't skip.
 
-This covers the three documented AI-agent failure modes in TDD with under
-200 lines of project configuration. The ESLint `vitest/expect-expect` rule is
-a near-zero-cost bonus that already catches a large share of perpetually-green
-tests at lint time.
+The ESLint `vitest/expect-expect` rule (§5) is a near-zero-cost bonus that
+catches a large share of perpetually-green tests at lint time, before mutation
+testing ever runs.

@@ -1,66 +1,85 @@
 ---
 date: 2026-05-20
-contexte: Fork étendu du skill TDD de Matt Pocock pour discipliner les agents IA
-source-amont: https://github.com/mattpocock/skills/tree/main/skills/engineering/tdd
-licence-amont: voir repo mattpocock/skills
+context: Extended fork of Matt Pocock's TDD skill to discipline AI agents
+upstream-source: https://github.com/mattpocock/skills/tree/main/skills/engineering/tdd
+upstream-license: see repo mattpocock/skills
 ---
 
-# tdd-skill (fork étendu)
+# tdd-skill (extended fork)
 
-Fork du skill TDD de Matt Pocock, étendu pour traiter explicitement les pathologies des agents IA en TDD documentées en 2024-2026 (Beck, Fowler, ThoughtWorks Radar v33, papers arxiv).
+Fork of Matt Pocock's TDD skill, extended to explicitly address the AI-agent
+pathologies in TDD documented in 2024-2026 (Beck, Fowler, ThoughtWorks Radar
+v33, arxiv papers).
 
-## Pourquoi ce fork
+## Why this fork
 
-Le skill original est solide pour un humain discipliné mais sous-équipé contre les modes de défaillance spécifiques aux agents IA :
+The original skill is solid for a disciplined human but under-equipped against
+the failure modes specific to AI agents:
 
-| Pathologie agent | Source | Traitée par l'original ? | Traitée ici ? |
+| Agent pathology | Source | Handled by the original? | Handled here? |
 |---|---|---|---|
-| Horizontal slicing (tous les tests d'abord) | Beck 2025 | Oui (excellent) | Conservé |
-| Over-mocking par défaut | arxiv 2602.00409 | Oui (mock at boundaries only) | Conservé |
-| Test through interface only | GOOS, Pocock | Oui | Conservé |
-| Suppression de tests pour passer | Beck 2025 (Pragmatic Engineer) | **Non** | `agent-discipline.md` |
-| Test must fail first (gate) | Martin, Three Laws | Partiel | `agent-discipline.md` |
-| Perpetually green / assertions vides | ThoughtWorks Radar v33 | Non | `refactoring.md` + `hooks.md` (mutation testing) |
-| Répartition humain/IA explicite | Fowler 2025 | Non | `SKILL.md` (section Roles) |
-| Spec exécutable amont | Fowler 2025 | Implicite | `SKILL.md` (section Spec-first) |
-| Plan.md persistant | Beck 2025 (augmented coding) | Non | `plan-template.md` |
-| Hooks / file perms / CI gates | ThoughtWorks v33 | Non | `hooks.md` |
-| Commit discipline par cycle | Beck 2025 | Non | `SKILL.md` (workflow étendu) |
-| Oracle problem | arxiv 2602.07900 | Non | `agent-discipline.md` |
+| Horizontal slicing (all tests first) | Beck 2025 | Yes (excellent) | Kept |
+| Over-mocking by default | arxiv 2602.00409 | Yes (mock at boundaries only) | Kept |
+| Test through interface only | GOOS, Pocock | Yes | Kept |
+| Deleting tests to make them pass | Beck 2025 (Pragmatic Engineer) | **No** | `agent-discipline.md` |
+| Test must fail first (gate) | Martin, Three Laws | Partial | `agent-discipline.md` + `scripts/tdd-verify-cycle.sh` |
+| Perpetually green / empty assertions | ThoughtWorks Radar v33 | No | `refactoring.md` + `hooks.md` (mutation testing) |
+| Explicit human/AI split | Fowler 2025 | No | `SKILL.md` (Roles section) |
+| Upstream executable spec | Fowler 2025 | Implicit | `SKILL.md` (Spec-first section) |
+| Persistent plan.md | Beck 2025 (augmented coding) | No | `plan-template.md` |
+| Hooks / file perms / CI gates | ThoughtWorks v33 | No | `hooks.md` |
+| Per-cycle commit discipline | Beck 2025 | No | `SKILL.md` (extended workflow) |
+| Oracle problem | arxiv 2602.07900 | No | `agent-discipline.md` |
 
-## Fichiers
+## Files
 
 ```
 tdd-skill/
-├── README.md             ← ce fichier
-├── SKILL.md              ← entrée principale (étendue)
-├── agent-discipline.md   ← NOUVEAU : règles dures anti-dérive
-├── plan-template.md      ← NOUVEAU : artefact externe que l'agent suit
-├── hooks.md              ← NOUVEAU : index des 6 mécanismes de garde-fous
-├── hooks-python.md       ← NOUVEAU : scripts copy-paste pour pytest + mutmut
-├── hooks-typescript.md   ← NOUVEAU : scripts copy-paste pour vitest/jest + Stryker
-├── hooks-go.md           ← NOUVEAU : scripts copy-paste pour go test + gremlins
-├── tests.md              ← good vs bad tests (de Pocock)
-├── mocking.md            ← mock at boundaries only (de Pocock)
-├── interface-design.md   ← DI, side-effect-free (de Pocock)
-├── deep-modules.md       ← Ousterhout (de Pocock)
-└── refactoring.md        ← étendu avec mutation testing
+├── README.md               ← this file
+├── SKILL.md                ← main entry point (extended)
+├── agent-discipline.md     ← NEW: hard anti-drift rules
+├── plan-template.md        ← NEW: external artifact the agent follows
+├── hooks.md                ← NEW: index of the guardrail mechanisms
+├── hooks-python.md         ← NEW: copy-paste scripts for pytest + mutmut
+├── hooks-typescript.md     ← NEW: copy-paste scripts for vitest/jest + Stryker
+├── hooks-go.md             ← NEW: copy-paste scripts for go test + gremlins
+├── scripts/
+│   └── tdd-verify-cycle.sh ← NEW: hardened, language-agnostic RED→GREEN
+│                              pre-commit that PROVES the cycle at commit time
+├── driver-state-machine.md ← NEW: the loop as an explicit FSM
+│                              (reference / autonomous blueprint)
+├── tests.md                ← good vs bad tests (from Pocock)
+├── mocking.md              ← mock at boundaries only (from Pocock)
+├── interface-design.md     ← DI, side-effect-free (from Pocock)
+├── deep-modules.md         ← Ousterhout (from Pocock)
+└── refactoring.md          ← extended with mutation testing
 ```
 
 ## Attribution
 
-Sections "Philosophy", "Anti-Pattern: Horizontal Slices", "Tracer Bullet", `tests.md`, `mocking.md`, `interface-design.md`, `deep-modules.md`, base de `refactoring.md` : Matt Pocock, repo `mattpocock/skills`.
+"Philosophy", "Anti-Pattern: Horizontal Slices", "Tracer Bullet" sections,
+`tests.md`, `mocking.md`, `interface-design.md`, `deep-modules.md`, and the base
+of `refactoring.md`: Matt Pocock, repo `mattpocock/skills`.
 
-Ajouts : voir tableau ci-dessus.
+Additions: see the table above.
 
-## Comment utiliser
+## How to use
 
-1. Comme **skill Claude Code** : déposer le dossier dans `~/.claude/skills/tdd-skill/`. L'agent invoque via mention TDD ou explicitement.
-2. Comme **doctrine équipe** : lire SKILL.md + agent-discipline.md avant chaque session IA. Activer les hooks de `hooks.md` en CI.
-3. Comme **référence personnelle** : à lire pour cadrer une session TDD avec Claude Code / Cursor / Aider.
+1. As a **Claude Code skill**: drop the folder into `~/.claude/skills/tdd-skill/`.
+   The agent invokes it via a TDD mention or explicitly.
+2. As **team doctrine**: read SKILL.md + agent-discipline.md before each AI
+   session. Enable the hooks from `hooks.md` in CI, and the `scripts/tdd-verify-cycle.sh`
+   pre-commit (§0) locally.
+3. As a **personal reference**: read to frame a TDD session with Claude Code /
+   Cursor / Aider.
 
-## Limites assumées
+## Acknowledged limitations
 
-- Les hooks de `hooks.md` sont des **templates**, à adapter au projet (Python/TS/Go/Rust).
-- Le skill ne remplace pas la code review humaine sur la qualité des assertions.
-- Mutation testing a un coût CI non-trivial — à activer sur les modules critiques en priorité.
+- The hooks in `hooks.md` are **templates**, to be adapted to the project
+  (Python/TS/Go/Rust). `scripts/tdd-verify-cycle.sh` covers Python/Go/TS out of
+  the box via `TDD_LANG`.
+- The skill does not replace human code review on assertion quality: the
+  commit-time gate proves the RED→GREEN *ordering*, not that assertions are
+  meaningful — mutation testing is the backstop for that.
+- Mutation testing has a non-trivial CI cost — enable it on critical modules
+  first.

@@ -28,7 +28,51 @@ lefthook install
 
 ---
 
+## §0. Hardened all-in-one gate (recommended)
+
+Use the shared `scripts/tdd-verify-cycle.sh` with `TDD_LANG=go`. It proves the
+RED→GREEN ordering at commit time instead of trusting the agent — see
+[hooks-python.md](hooks-python.md) §0 for the full rationale (gates A/B/C, the
+closed escape hatch, the byte-for-byte worktree safety). The same three gates
+apply here; Go specifics:
+
+- **Colocated tests.** Files are classified by suffix, not directory:
+  `*_test.go` are tests, other `*.go` are production. No `src/` assumption.
+- **RED = compile failure is legitimate.** Reverting the staged `*.go` to HEAD
+  removes the new symbol, so the package no longer compiles and `go test` fails
+  — that *is* the Go RED, exactly like a Python `ImportError`. The gate does not
+  reject it (unlike the legacy §2 `tdd-red.sh` below, whose `build failed` grep
+  over-rejects); real breakage persists into GREEN and is caught there.
+- **Selector syntax:** the marker holds `<pkg>::<TestName>`, e.g.
+  `./internal/checkout::TestCheckout_HappyPath`, which the preset turns into
+  `go test -count=1 -run '^TestCheckout_HappyPath$' ./internal/checkout`.
+
+```yaml
+# lefthook.yml
+pre-commit:
+  commands:
+    tdd-verify-cycle:
+      env: { TDD_LANG: go }
+      run: ./tdd-skill/scripts/tdd-verify-cycle.sh
+```
+
+Agent workflow:
+
+```bash
+echo './internal/checkout::TestCheckout_HappyPath' > .tdd-cycle
+git add internal/checkout/checkout.go internal/checkout/checkout_test.go
+TDD_LANG=go git commit -m 'test+feat(checkout): T1'   # hook proves RED then GREEN
+rm .tdd-cycle
+```
+
+The `RUN_ALL` for refactor commits defaults to `go test ./...`.
+
+---
+
 ## §1. Detect test modification during a Green cycle
+
+> Legacy self-reported variant — prefer §0. Kept for setups that cannot run
+> `go test` inside the pre-commit.
 
 **Plain hook** — `.git/hooks/pre-commit` (chmod +x):
 
@@ -378,11 +422,12 @@ in mind in the system prompt:
 
 ---
 
-## Minimum viable Go setup (3 things)
+## Minimum viable Go setup (2 things)
 
-1. `lefthook` running `tdd-cycle-guard.sh` (§1).
-2. `scripts/tdd-red.sh` invoked before each Green (§2).
-3. `gremlins` GitHub Action with thresholds in `gremlins.yaml` (§4).
+1. `scripts/tdd-verify-cycle.sh` as pre-commit with `TDD_LANG=go` (§0) — proven
+   RED→GREEN, escape hatch closed, folds §1 + §2.
+2. `gremlins` GitHub Action with thresholds in `gremlins.yaml` (§4) — the
+   assertion-quality backstop `--no-verify` can't skip.
 
 Plus, near-zero-cost: enable `paralleltest` + `errcheck` + `thelper` in
 `golangci-lint`. These catch a large share of agent-generated test smells
