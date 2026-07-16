@@ -36,7 +36,7 @@ spec-to-tests/
 | 2 | Executable specification: what you give humans and AI to read | [Article 2](https://www.blog-des-telecoms.com/blog/specification-executable-gherkin-proprietes/) |
 | 3 | Who writes the test, who writes the code? The human / AI / tools split | [Article 3](https://www.blog-des-telecoms.com/en/blog/who-writes-what-humans-ai-deterministic-tools/) |
 | 4 | Measuring whether tests are worth something: the 4 axes | [Article 4](https://www.blog-des-telecoms.com/en/blog/measuring-test-quality-four-axes/) |
-| 5 | Property-based testing: the defense against weak oracles | [coming soon] |
+| 5 | Property-based testing: the defense against weak oracles | [Article 5](https://www.blog-des-telecoms.com/en/blog/property-based-testing-defense-weak-oracles/) |
 | 6 | Putting it into practice: React + Go (Gin / GORM / PostgreSQL) | [coming soon] |
 | 7 | Launching execution: from plan to PR | [coming soon] |
 
