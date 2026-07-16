@@ -1,36 +1,47 @@
 # Contributing
 
-Merci de l'intérêt porté à ce dépôt.
+Thanks for your interest in this repository.
 
-## Avant d'ouvrir une pull request
+## Before opening a pull request
 
-1. **Ouvrir une issue** pour discuter de l'angle, sauf pour les corrections triviales (fautes, liens cassés, typos). Cela évite les efforts en parallèle.
-2. **Lire la série d'articles** correspondante sur [blog-des-telecoms.com](https://blog-des-telecoms.com) pour comprendre le fil rouge et le ton.
-3. **Respecter la doctrine du `tdd-skill/`** dans les exemples — notamment :
-   - Pas de mocks sur du code interne.
-   - Tests à travers l'interface publique uniquement.
-   - Une property = un fichier, pas de propriétés combinées.
+1. **Open an issue** to discuss the angle, except for trivial fixes (typos,
+   broken links, spelling). This avoids duplicated effort.
+2. **Read the corresponding article series** on
+   [blog-des-telecoms.com](https://blog-des-telecoms.com) to understand the
+   through-line and the tone.
+3. **Respect the `tdd-skill/` doctrine** in the examples — in particular:
+   - No mocks on internal code.
+   - Test through the public interface only.
+   - One property = one file, no combined properties.
 
 ## Style
 
-- Code Python : `ruff` propre, `pytest` qui passe.
-- Code TypeScript : `eslint` propre (config dans `examples/billing-react-go/frontend/`), `vitest` qui passe.
-- Code Go : `golangci-lint run` propre, `go test -race ./...` qui passe.
-- Documentation Markdown : un titre H1 par fichier, sections H2, frontmatter facultatif.
+- Python code: clean `ruff`, passing `pytest`.
+- TypeScript code: clean `eslint` (config in `examples/billing-react-go/frontend/`),
+  passing `vitest`.
+- Go code: clean `golangci-lint run`, passing `go test -race ./...`.
+- Markdown documentation: one H1 title per file, H2 sections, optional
+  frontmatter.
 
-## Types de contributions appréciées
+## Contributions that are appreciated
 
-- **Portage stack** : adapter les démos à Vue, Svelte, FastAPI, Spring Boot, Rust + Axum, etc.
-- **Nouveaux patterns PBT** : invariants ou métamorphique non couverts dans les exemples.
-- **Retours d'expérience** : retour d'application du workflow en production, sous forme de fichier `case-studies/<sujet>.md`.
-- **Corrections de bugs** dans les exemples (en dehors des bugs **intentionnels** signalés `# BUG:` dans le code).
+- **Stack porting**: adapt the demos to Vue, Svelte, FastAPI, Spring Boot,
+  Rust + Axum, etc.
+- **New PBT patterns**: invariants or metamorphic relations not covered in the
+  examples.
+- **Field feedback**: reports of applying the workflow in production, as a
+  `case-studies/<topic>.md` file.
+- **Bug fixes** in the examples (other than the **intentional** bugs flagged
+  `# BUG:` in the code).
 
-## Ce qui ne sera pas accepté
+## What will not be accepted
 
-- PR qui transforment les démos en frameworks abstraits — la valeur pédagogique vient du fait qu'elles soient courtes et explicites.
-- Ajout de dépendances lourdes (frameworks complets) pour les exemples.
-- Reformulations stylistiques sans amélioration substantielle.
+- PRs that turn the demos into abstract frameworks — the educational value comes
+  from them being short and explicit.
+- Adding heavy dependencies (full frameworks) to the examples.
+- Stylistic rewrites with no substantial improvement.
 
-## Licence des contributions
+## License of contributions
 
-En soumettant une PR, vous acceptez que votre contribution soit publiée sous la même licence MIT que le dépôt.
+By submitting a PR, you agree that your contribution is published under the same
+MIT license as the repository.
