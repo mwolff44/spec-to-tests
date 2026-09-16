@@ -1,6 +1,7 @@
 ---
 name: tdd
-description: Test-driven development with red-green-refactor loop, hardened for AI agents. Use when user wants to build features or fix bugs using TDD, mentions "red-green-refactor", wants integration tests, or asks for test-first development. Enforces agent-discipline rules to prevent test deletion, over-mocking, perpetually-green tests, and oracle drift.
+description: Use when the user requests test-first development, red-green-refactor, integration tests, or a bug fix built with TDD. Protect tests from deletion, over-mocking, and oracle drift.
+disable-model-invocation: false
 ---
 
 # Test-Driven Development (AI-hardened)
