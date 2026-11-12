@@ -16,9 +16,10 @@ Overview of the workflow proposed in the article series. This document serves as
                             ↓
 ┌──────────────────────────────────────────────────────────────┐
 │ 2. TESTS                                                     │
-│    Human writes (or strictly validates) tests BEFORE         │
-│    any production code is written.                           │
-│    Useful deterministic tools here:                           │
+│    For new behavior, the human writes (or strictly           │
+│    validates) tests BEFORE production code. Characterization │
+│    and tests-only pin existing behavior without inventing    │
+│    production code. Useful deterministic tools here:         │
 │      • Hypothesis ghostwriter (PBT skeletons)               │
 │      • Pynguin / EvoSuite (structural tests)                │
 │      • GraphWalker / ModelJUnit (model-based)                │
@@ -27,19 +28,22 @@ Overview of the workflow proposed in the article series. This document serves as
 ┌──────────────────────────────────────────────────────────────┐
 │ 3. AI EXECUTION                                              │
 │    The agent implements under the constraint of the tests:   │
-│      • One cycle = one test = one commit                     │
-│      • Persistent plan.md that the agent follows              │
-│      • Hard rules from tdd-skill/agent-discipline.md          │
-│      • RED→GREEN proven at commit by the §0 pre-commit gate   │
-│        (tdd-skill/scripts/tdd-verify-cycle.sh)                │
+│      • Mode-aware: TDD, bug regression, characterization,    │
+│        refactoring, or tests-only                            │
+│      • Cases chosen by behavior and risk, not a quota        │
+│      • Optional plan.md for larger changes                   │
+│      • Rules from tdd-skill/agent-discipline.md              │
+│      • Optional strict profile: the §0 pre-commit gate       │
+│        (tdd-skill/scripts/tdd-verify-cycle.sh), opt-in       │
+│        and limited to ordering on the selected target        │
 └──────────────────────────────────────────────────────────────┘
                             ↓
 ┌──────────────────────────────────────────────────────────────┐
 │ 4. VERIFICATION                                              │
-│    Multi-agent (writer + critic) + deterministic tools:      │
-│      • Critic-agent enforces TDD discipline                  │
-│      • Mutation testing scoped to changes                    │
-│      • Coverage gate (line + branch)                         │
+│    Independent review by risk + deterministic tools:         │
+│      • Risk-based reviewer (not a mandatory role split)      │
+│      • Targeted mutation testing on changed critical modules │
+│      • Coverage gate where the team chooses one              │
 │      • Lint + smells detector                                │
 └──────────────────────────────────────────────────────────────┘
                             ↓
@@ -93,10 +97,12 @@ Overview of the workflow proposed in the article series. This document serves as
 spec-to-tests/
 │
 ├── tdd-skill/                              ← steps 3-4
-│   Hard rules to discipline the AI agent:
-│   agent-discipline.md, plan-template.md, hooks-*.md,
-│   scripts/tdd-verify-cycle.sh (proven RED→GREEN gate,
-│   Python/Go/TS), driver-state-machine.md (FSM reference)
+│   Core doctrine + optional strict profiles:
+│   SKILL.md, agent-discipline.md, plan-template.md,
+│   references/ (test design, advanced checks),
+│   hooks-*.md (optional), scripts/tdd-verify-cycle.sh
+│   (opt-in ordering gate, Python/Go/TS), and
+│   driver-state-machine.md (optional FSM reference)
 │
 ├── examples/pbt-sip/                       ← step 2 (article 5)
 │   Hypothesis demo on a SIP parser and a dialog FSM.

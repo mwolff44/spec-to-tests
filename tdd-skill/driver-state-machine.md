@@ -1,19 +1,21 @@
 # Driver State Machine — the red-green-refactor loop as an explicit FSM
 
-> **Status: reference / blueprint, not shipped machinery.**
+> **Status: reference / blueprint, not shipped machinery, and optional.**
 > In **supervised** work the recommended enforcement is the commit-time gate
-> `scripts/tdd-verify-cycle.sh` ([hooks-python.md](hooks-python.md) §0). This
-> document exists because a state machine is the natural shape of the loop, and
-> writing it down (a) makes the intended control flow precise where [SKILL.md](SKILL.md)
-> only describes it in prose, and (b) is the blueprint for a future **autonomous**
-> driver. Do not build the machinery until you actually go autonomous — until
-> then it is an abstraction ahead of its need.
+> `scripts/tdd-verify-cycle.sh` ([hooks-python.md](hooks-python.md) §0) — itself
+> an **opt-in strict profile**. This document exists because a state machine is
+> the natural shape of the loop, and writing it down (a) makes the intended
+> control flow precise where [SKILL.md](SKILL.md) only describes it in prose,
+> and (b) is the blueprint for a future **autonomous** driver. Do not build the
+> machinery until you actually go autonomous — until then it is an abstraction
+> ahead of its need.
 
 ## Why a state machine at all
 
-The hook *proves* one cycle **after the fact**: at commit time it checks the end
-state is reconstructible as red→green. It does not stop an agent from writing
-code first — it just rejects the commit, costing rework.
+The hook *reconstructs* one cycle **after the fact**: at commit time it checks
+the end state is reconstructible as red→green. It does not prove the authoring
+chronology or the quality of the oracle. It also does not stop an agent from
+writing code first — it just rejects the commit, costing rework.
 
 A driver *owns the control flow*: it chooses the next transition by observing
 test results, so RED-before-GREEN becomes a property of the driver, not of the
@@ -28,8 +30,8 @@ simply no edge from RED to REFACTOR.
 | PICK | plan empty | DONE | — |
 | PICK | next behavior | RED | — |
 | RED | test written, run **fails** | APPROVE | [agent-discipline.md](agent-discipline.md) §2: run **passes** ⇒ HALT (vacuous / pre-existing behavior) |
-| APPROVE | reviewer approves | GREEN | supervised blocking gate: spec-as-test validated before any code |
-| APPROVE | reviewer rejects | RED | rewrite the test — **code untouched** (§1) |
+| APPROVE | review gate passes (when risk warrants one) | GREEN | risk-based review: spec-as-test validated before code |
+| APPROVE | reviewer rejects | RED | rewrite the test when independently justified — **code untouched** (§1) |
 | APPROVE | reviewer aborts | HALTED | §10 |
 | GREEN | code written, run **passes** | REFACTOR | bounded code retries then HALT; **test never edited** to reach green |
 | GREEN | retries exhausted | HALTED | do not touch the test — surface to human |
@@ -51,11 +53,11 @@ Two orthogonal properties are both required:
    implements `write_code` can also edit the test file, or can bypass the driver
    and edit the tree directly, the FSM governs nothing.
 
-> The FSM makes ordering structural; **[hooks-python.md](hooks-python.md) §6
-> role-split makes the path exclusive** (test-author session vs implementer
-> session, each with restricted write paths). Neither alone suffices. The state
-> machine does not eliminate the "exclusive path" requirement named elsewhere in
-> this skill — it concentrates it into the wiring of the ports.
+> The FSM makes ordering structural. **Independent review, when risk warrants
+> it, checks the path** (a reviewer inspects the test and the diff). Neither
+> alone suffices, and neither is mandatory for every cycle. The state machine
+> does not eliminate the "visible, reviewable path" requirement named elsewhere
+> in this skill — it concentrates it into the wiring of the ports.
 
 ## Two realizations of the same table
 
@@ -87,21 +89,23 @@ pipeline(plan,
 - The human `APPROVE` gate is replaced by an **adversarial verifier panel** —
   independent agents prompted to *refute* that the RED test is a genuine
   behavioral failure. This is the autonomous stand-in for human review.
-- Role-split is two agent profiles (test-author vs implementer) with disjoint
-  write permissions — the exclusivity property above, mechanized.
+- Role separation is **optional**, not mandatory: if the team opts into it, use
+  two agent profiles with disjoint write paths; otherwise keep the diff visible
+  and review it by risk. No harness-specific permission fields are required.
 
 ## When to build it
 
-- **Supervised interactive work** (the default): don't. Hook §0 +
+- **Supervised interactive work**: don't. Hook §0 +
   [agent-discipline.md](agent-discipline.md) cover it. Building the driver here
   is over-engineering.
-- **Autonomous / semi-autonomous runs**: build it — but only together with §6.
-  Its marginal value over the hook exists only once no human is in the loop to
-  reject a code-first cycle before it wastes work.
+- **Autonomous / semi-autonomous runs**: build it only if you also keep the diff
+  visible; independent review remains optional and risk-based, never a
+  prerequisite. Its marginal value over the hook exists once no human is in the
+  loop to reject a code-first cycle before it wastes work.
 
 ## See also
 
-- [hooks-python.md](hooks-python.md) §0 — the commit-time RED→GREEN proof (supervised default).
-- [hooks-python.md](hooks-python.md) §6 — role-split (the exclusivity property).
-- [agent-discipline.md](agent-discipline.md) — the hard rules the guards encode.
+- [hooks-python.md](hooks-python.md) §0 — optional strict profile; baseline→proposal contrast, not chronology or oracle proof.
+- [hooks-python.md](hooks-python.md) §6 — independent review by risk (optional).
+- [agent-discipline.md](agent-discipline.md) — the rules the guards encode.
 - [SKILL.md](SKILL.md) — the workflow this table formalizes.

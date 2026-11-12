@@ -10,9 +10,10 @@ Thanks for your interest in this repository.
    [blog-des-telecoms.com](https://blog-des-telecoms.com) to understand the
    through-line and the tone.
 3. **Respect the `tdd-skill/` doctrine** in the examples — in particular:
-   - No mocks on internal code.
    - Test through the public interface only.
-   - One property = one file, no combined properties.
+   - Prefer real collaborators when fast and deterministic; internal doubles
+     need a stated reason and must never stand in for the subject under test.
+   - One property = one file, no combined properties (example-specific rule).
 
 ## Style
 

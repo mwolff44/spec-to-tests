@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# tdd-verify-cycle.sh — hardened, language-agnostic pre-commit gate for the
+# tdd-verify-cycle.sh — language-agnostic pre-commit gate for the
 # red-green-refactor loop (Python / Go / TypeScript-JS, or any runner you wire).
 #
-# It replaces the self-reported .tdd-red convention with a proof executed at
-# commit time: the RED-before-GREEN ordering is verified by the hook, not
-# narrated by the agent. See hooks-{python,go,typescript}.md §0/§2 and
-# agent-discipline.md §1/§2/§5.
+# It replaces the self-reported .tdd-red convention with a commit-time
+# reconstruction: the staged production files are swapped to their HEAD
+# baseline and then back to the index (the proposed commit). The hook measures
+# that baseline/proposal contrast — not the authoring chronology, and not the
+# quality of the oracle. The strict cycle profile is opt-in through the marker;
+# `refactor` asks for a green-only run. See hooks-{python,go,typescript}.md
+# §0/§2 and agent-discipline.md §1/§2/§5.
 #
 # Three gates, one chokepoint (the commit):
 #   A. Cycle-declaration guard — production code staged without a declared cycle
@@ -18,23 +21,26 @@
 #      in one, is REJECTED. This distinguishes "append a new test" from "alter an
 #      existing test to make code pass" at the diff level, with no need to know
 #      which file is "the cycle test" (language-agnostic form of §1).
-#   C. RED→GREEN proof (§2, §5) — with the staged production files reverted to
-#      HEAD the cycle target MUST fail (RED); with them restored it MUST pass
-#      (GREEN). The old "wrong-reason" grep is dropped from RED: a missing-symbol
-#      ImportError (Python) or a compile failure (Go, because test and code share
-#      a package) is a *legitimate* RED. Genuine wiring breakage persists into
-#      GREEN and is caught there — GREEN subsumes the reason check.
+#   C. Baseline→proposal contrast (§2, §5) — with the staged production files
+#      reverted to HEAD the cycle target MUST fail (RED); with them restored to
+#      the index it MUST pass (GREEN). This is a reconstruction of the diff,
+#      not evidence of when or how the code was written. The old "wrong-reason"
+#      grep is dropped from RED: a missing-symbol ImportError (Python) or a
+#      compile failure (Go, because test and code share a package) is a
+#      *legitimate* RED. Genuine wiring breakage persists into GREEN and is
+#      caught there — GREEN subsumes the reason check.
 #
 # Files are classified by SUFFIX regex, not by directory, so colocated tests
 # (Go `foo_test.go`, React `Component.test.tsx`) work as well as a separate
 # `tests/` tree (Python).
 #
 # Marker file `.tdd-cycle` (first line):
-#   <run selector>       → RED→GREEN mode. The selector is passed to the runner
-#                          (pytest node id / `pkg::TestName` for Go / vitest -t
-#                          pattern for TS).
-#   refactor [selector]  → GREEN-only mode: no code was reverted; the selector,
-#                          or the whole suite if none, must stay green.
+#   <run selector>       → contrast mode: the selector must fail at the HEAD
+#                          baseline and pass with the index applied. It is
+#                          passed to the runner (pytest node id /
+#                          `pkg::TestName` for Go / vitest -t pattern for TS).
+#   refactor [selector]  → GREEN-only mode: no baseline swap; the selector, or
+#                          the whole suite if none, must stay green.
 #
 # Config: pick a preset with TDD_LANG (python|go|ts), or override any of the
 # four knobs directly:
@@ -42,6 +48,11 @@
 #   TDD_TEST_RE  regex of test files
 #   TDD_RUN      runner for one selector; the template references "$sel"
 #   TDD_RUN_ALL  runner for the whole suite
+#
+# TDD_RUN and TDD_RUN_ALL are TRUSTED shell templates, evaluated with eval in
+# this shell; never build them from untrusted input. The built-in presets pass
+# the selector as one quoted argument — do not splice it into `sh -c` or
+# another shell parser.
 #
 # Bypass note: `git commit --no-verify` skips this, like any pre-commit hook.
 # The hard backstop is the server-side CI gate (§4/§5), unreachable by --no-verify.
@@ -87,15 +98,32 @@ info() { echo "TDD-GATE: $*" >&2; }
 # --- what is being committed (the index), classified by suffix regex ----------
 staged_src=$(git diff --cached --name-only --diff-filter=AM \
   | grep -E "$TDD_SRC_RE" | grep -Ev "$TDD_TEST_RE" || true)
+# Test lists are read into arrays: Git paths may contain spaces, so they must
+# never be word-split by an unquoted expansion. One path = one element.
+# (A path containing a newline is out of scope: git's line-delimited output
+# cannot represent it unambiguously.)
+declare -a staged_test_dels=() staged_test_edits=() staged_tests_any=()
 # test files deleted — always a §1 violation in a cycle.
-staged_test_dels=$(git diff --cached --name-only --diff-filter=D \
+_staged_test_dels=$(git diff --cached --name-only --diff-filter=D \
   | grep -E "$TDD_TEST_RE" || true)
+while IFS= read -r _f; do
+  [[ -z "$_f" ]] && continue
+  staged_test_dels+=("$_f")
+done <<< "$_staged_test_dels"
 # test files modified (M) — allowed only if the diff is purely additive.
-staged_test_edits=$(git diff --cached --name-only --diff-filter=M \
+_staged_test_edits=$(git diff --cached --name-only --diff-filter=M \
   | grep -E "$TDD_TEST_RE" || true)
+while IFS= read -r _f; do
+  [[ -z "$_f" ]] && continue
+  staged_test_edits+=("$_f")
+done <<< "$_staged_test_edits"
 # any staged test change (add/modify/delete) — used by refactor mode.
-staged_tests_any=$(git diff --cached --name-only --diff-filter=AMD \
+_staged_tests_any=$(git diff --cached --name-only --diff-filter=AMD \
   | grep -E "$TDD_TEST_RE" || true)
+while IFS= read -r _f; do
+  [[ -z "$_f" ]] && continue
+  staged_tests_any+=("$_f")
+done <<< "$_staged_tests_any"
 
 # Nothing production-relevant staged and no cycle open → not our business.
 if [[ -z "$staged_src" && ! -f "$MARKER" ]]; then
@@ -108,7 +136,7 @@ fi
 if [[ -n "$staged_src" && ! -f "$MARKER" ]]; then
   die "production code staged with no '$MARKER' declared.
      Declare the cycle first, e.g.:
-       echo '<run selector>' > $MARKER   # RED→GREEN cycle
+       echo '<run selector>' > $MARKER   # contrast cycle (baseline fails)
        echo 'refactor' > $MARKER         # green-only refactor commit
      (agent-discipline.md §1/§2 — no untracked production changes)."
 fi
@@ -128,15 +156,15 @@ fi
 # Gate B — test-modification guard (§1).
 # ---------------------------------------------------------------------------
 if [[ "$MODE" == "refactor" ]]; then
-  [[ -z "$staged_tests_any" ]] || die "refactor commit stages test files:
-$(printf '  %s\n' $staged_tests_any)
+  [[ "${#staged_tests_any[@]}" -eq 0 ]] || die "refactor commit stages test files:
+$(printf '  %s\n' "${staged_tests_any[@]}")
      A refactor keeps tests untouched (agent-discipline.md §1). Split the commit."
 else
-  [[ -z "$staged_test_dels" ]] || die "cycle commit deletes existing test(s):
-$(printf '  %s\n' $staged_test_dels)
+  [[ "${#staged_test_dels[@]}" -eq 0 ]] || die "cycle commit deletes existing test(s):
+$(printf '  %s\n' "${staged_test_dels[@]}")
      Never remove a test to make code pass (agent-discipline.md §1)."
   # A modified test file is fine only if it purely GROWS (0 lines removed).
-  for f in $staged_test_edits; do
+  for f in "${staged_test_edits[@]}"; do
     removed=$(git diff --cached --numstat -- "$f" | awk 'NR==1{print $2+0}')
     [[ "${removed:-0}" -eq 0 ]] || die "cycle commit changes existing lines in test '$f' \
 ($removed removed).
@@ -146,10 +174,10 @@ $(printf '  %s\n' $staged_test_dels)
 fi
 
 # ---------------------------------------------------------------------------
-# Gate C — RED→GREEN proof. Only when production code actually lands.
+# Gate C — baseline→proposal contrast. Only when production code actually lands.
 # ---------------------------------------------------------------------------
 if [[ -z "$staged_src" ]]; then
-  info "no production code staged; skipping RED→GREEN proof."
+  info "no production code staged; skipping baseline→proposal contrast."
   exit 0
 fi
 
@@ -173,8 +201,21 @@ declare -a SRC_FILES=() BAK_FILES=()
 _i=0
 while IFS= read -r _f; do
   [[ -z "$_f" ]] && continue
+  # A staged modification may have been deleted from the worktree. Refuse
+  # before any swap: a failed backup must never become an empty backup that
+  # cleanup would write back as a fabricated empty file.
+  if [[ ! -f "$_f" || ! -r "$_f" ]]; then
+    rm -rf -- "$BAKDIR" "$LOG_RED" "$LOG_GREEN"
+    die "cannot back up staged source '$_f': missing or unreadable in the worktree.
+     Refusing before any baseline/proposal mutation. Restore it
+     (e.g. git restore --worktree -- '$_f') or commit the deletion separately."
+  fi
+  if ! cp -- "$_f" "$BAKDIR/$_i"; then
+    rm -rf -- "$BAKDIR" "$LOG_RED" "$LOG_GREEN"
+    die "cannot back up staged source '$_f' (cp failed).
+     Refusing before any baseline/proposal mutation."
+  fi
   SRC_FILES+=("$_f")
-  cp -- "$_f" "$BAKDIR/$_i" 2>/dev/null || : > "$BAKDIR/$_i"
   BAK_FILES+=("$BAKDIR/$_i")
   _i=$((_i + 1))
 done <<< "$staged_src"
@@ -226,8 +267,9 @@ if [[ "$MODE" == "cycle" ]]; then
   # (Python) or a package that no longer compiles (Go) is a legitimate RED.
   # Real wiring breakage persists into GREEN and is caught there.
   if run_target "$LOG_RED" "$SELECTOR"; then
-    die "RED check FAILED: target '$SELECTOR' PASSES without the new production code.
-     Either the behavior already existed, or the test asserts nothing real
+    die "RED check FAILED: target '$SELECTOR' PASSES at the HEAD baseline, without the
+     staged production code. Either the behavior already existed, or the test
+     asserts nothing real
      (agent-discipline.md §2 — perpetually-green). STOP and investigate.
 $(tail -n 15 "$LOG_RED")"
   fi
@@ -237,7 +279,7 @@ $(tail -n 15 "$LOG_RED")"
 fi
 
 if run_target "$LOG_GREEN" "$SELECTOR"; then
-  info "GREEN confirmed. Cycle proven RED→GREEN. ✔"
+  info "GREEN confirmed. Baseline/proposal contrast holds. ✔"
   exit 0
 fi
 

@@ -1,176 +1,143 @@
 ---
 name: tdd
 description: Use when the user requests test-first development, red-green-refactor, integration tests, or a bug fix built with TDD. Protect tests from deletion, over-mocking, and oracle drift.
-disable-model-invocation: false
 ---
 
-# Test-Driven Development (AI-hardened)
+# Test-Driven Development
 
-> Fork of Matt Pocock's tdd skill, extended with explicit agent-discipline rules,
-> spec-first phase, role separation (human vs AI), plan.md artifact, mutation testing,
-> and hook templates. See `README.md` for the full diff and rationale.
+> Fork of Matt Pocock's TDD skill, extended for AI agents. See `README.md` for
+> provenance and the list of additions; the original philosophy and examples are
+> credited there. This core is deliberately small; deeper material is in
+> `references/`.
 
-## Philosophy
+## What good looks like
 
-**Core principle**: Tests verify behavior through public interfaces, not implementation details. Code can change entirely; tests shouldn't.
+Tests are useful when they pin behavior that matters and can fail for a real
+reason. Keep them small and direct (KISS), and choose cases by behavior and
+risk — never by a quota of functions, files or lines.
 
-**Good tests** are integration-style: they exercise real code paths through public APIs. They describe _what_ the system does, not _how_. A good test reads like a specification — `"user can checkout with valid cart"` tells you exactly what capability exists. These tests survive refactors because they don't care about internal structure.
+- Test a **public contract**: a seam, module boundary, or persistence contract.
+  For a repository, the SQL/transactional behavior can be the contract.
+- Prefer **real collaborators** when they are fast, deterministic and practical.
+  Use doubles at external boundaries; an internal double needs a stated reason
+  and must never stand in for the code under test.
+- Reading production code is allowed. The **oracle** — the expected result —
+  must come from the spec, an example, domain knowledge, or characterization of
+  observed behavior; it must not be copied from the implementation under test.
+- A test is not done because it is green. It is done when it would fail if the
+  claimed behavior changed.
 
-**Bad tests** are coupled to implementation. They mock internal collaborators, test private methods, or verify through external means (querying a DB directly instead of using the interface). Warning sign: a test breaks when you refactor but behavior hasn't changed.
+Avoid:
+- horizontal slicing (all tests first, then all code);
+- tests of private helpers or call counts;
+- assertions that pass regardless of the behavior;
+- a green run that no plausible defect could turn red.
 
-See [tests.md](tests.md) for examples, [mocking.md](mocking.md) for mocking guidelines, and **[agent-discipline.md](agent-discipline.md) for the hard rules that prevent agent drift**.
+## Choose the mode
 
-## Roles (human vs AI) — read this first
-
-This skill is designed for AI agent collaboration. Roles are NOT symmetric:
-
-| Step | Authoring | Validation |
+| Mode | Use when | First useful green |
 |---|---|---|
-| Spec / intention | Human | Human |
-| Test (RED) | Human (or AI proposes, human approves) | Human approves before Green |
-| Production code (GREEN) | AI | Tests + CI + mutation score |
-| Refactor | AI proposes, human approves | Tests stay green |
+| **TDD** | New behavior, test can be written first | After minimal production code |
+| **Bug regression** | A reported defect | After the fix; the test must fail on the old baseline |
+| **Characterization** | Behavior is unknown and must be pinned before a change | Immediately, by observing current behavior |
+| **Refactoring** | Behavior must not change | Already green before and after |
+| **Tests-only** | Adding or strengthening coverage without changing production | Immediately, from existing behavior |
 
-**Anti-pattern**: letting the same AI agent author both the test and the code for the same behavior in the same unsupervised loop. This is the fast path to "I made the test pass by changing the test."
+Characterization records what the system does; it does not decide whether that
+behavior is correct business behavior. That correction is a separate change.
 
-If the human cannot author every test, at minimum: the AI must write tests **before** seeing or producing any implementation, and the human reviews them as a blocking gate before Green.
-
-## Anti-Pattern: Horizontal Slices
-
-**DO NOT write all tests first, then all implementation.** This is horizontal slicing — treating RED as "write all tests" and GREEN as "write all code." It produces **crap tests**:
-
-- Tests written in bulk test _imagined_ behavior, not _actual_ behavior.
-- You test the _shape_ of things (data structures, function signatures) rather than user-facing behavior.
-- Tests become insensitive to real changes — they pass when behavior breaks and fail when behavior is fine.
-- You outrun your headlights, committing to test structure before understanding the implementation.
-
-**Correct approach**: Vertical slices via tracer bullets. One test → one implementation → repeat.
-
-```
-WRONG (horizontal):
-  RED:   test1, test2, test3, test4, test5
-  GREEN: impl1, impl2, impl3, impl4, impl5
-
-RIGHT (vertical):
-  RED→GREEN: test1→impl1
-  RED→GREEN: test2→impl2
-  ...
-```
+`references/test-design.md` is the conditional depth for seams, cases and
+RED/GREEN interpretation. Advanced checks — properties, contracts, mutation,
+flakiness, independent review — are also conditional: read
+`references/advanced-checks.md` only when the risk or stack calls for them.
 
 ## Workflow
 
-### 0. Spec-first (NEW)
+### 1. Frame the change
 
-Before any test, produce a minimal executable spec:
+State the intent, a few concrete examples, non-goals and the main risks. Pick the
+mode and the public seam. Identify discriminating cases: boundaries, error paths,
+interactions, regressions, and the one case that distinguishes the new behavior
+from the old. For TDD, work in small vertical slices — one behavior, its test,
+its code — rather than batching imagined tests. Plan only as much as the risk
+justifies; `plan-template.md` is optional, not a required artifact.
 
-- [ ] One-paragraph intention in plain language (the WHY).
-- [ ] 2–5 concrete examples of inputs/outputs or scenarios (the WHAT).
-- [ ] Explicit non-goals (the NOT WHAT).
-- [ ] Constraints: performance, error handling, security, side effects.
-- [ ] Domain glossary terms used (match the project's vocabulary; respect ADRs).
+### 2. RED — make the claim observable
 
-This is the contract. Tests are derived from it. If the agent later proposes behavior outside this spec, that is drift — reject it.
+Write one focused test (or a small coherent set for characterization/tests-only)
+and run it. Observe the failure output:
 
-### 1. Planning
+- It must fail for the reason you claim: the assertion, or an absent API.
+- A missing API or compile error is a legitimate **structural RED** when the
+  test calls a contract that does not exist yet.
+- An unrelated import, fixture or environment error is not RED; fix it, then
+  rerun.
+- If the test passes on first run: in tests-only or characterization this can be
+  the first useful green. Otherwise stop and investigate — the behavior may
+  already exist, or the test may assert nothing real.
 
-- [ ] Confirm with user what interface changes are needed.
-- [ ] Confirm with user which behaviors to test (prioritize).
-- [ ] Identify opportunities for [deep modules](deep-modules.md) (small interface, deep implementation).
-- [ ] Design interfaces for [testability](interface-design.md).
-- [ ] **Create or update [`plan.md`](plan-template.md)** with the ordered list of tests. This is the artifact the agent follows.
-- [ ] Get user approval on the plan.
+### 3. GREEN — the smallest coherent change
 
-**You can't test everything.** Confirm with the user exactly which behaviors matter. Focus on critical paths and complex logic.
+Write the minimum production change that makes the claim true without
+speculative generalization.
 
-### 2. Tracer bullet (first cycle)
+- Technical corrections (typos, wiring, types) are autonomous. Semantic
+  corrections are also allowed when independently justified; changing expected
+  behavior or the oracle additionally needs evidence, a rerun, and a renewed RED
+  against a safe baseline. If that evidence is unavailable, state the gap; do
+  not claim a proven cycle. Review is for business ambiguity, scope change or an
+  agreed risk — not an automatic revision gate.
+- Do not add production code merely to make a test file look busy in tests-only
+  or characterization mode.
 
-Write ONE test that confirms ONE thing about the system:
+### 4. Refactor — only on an understood green
 
-```
-RED:   write test for first behavior → run → VERIFY IT FAILS
-GREEN: write minimal code to pass → run → VERIFY IT PASSES
-```
+Refactor when the suite is green and you can explain why. Do not refactor
+production code while RED is unexplained. Keep the relevant tests green, then
+broaden verification (package, module, suite) according to risk.
+Behavior-preserving refactors do not change tests to force a result.
 
-The "verify it fails" step is a **gate**, not a comment. If the test passes on first run, **STOP**. Either the behavior already exists or the test does not test what it claims. See [agent-discipline.md](agent-discipline.md) §2.
+### 5. Report
 
-### 3. Incremental loop
+Say what changed, the commands actually run, their scope and results, and what
+was not verified. Do not present an intended command as executed.
 
-For each remaining behavior:
+## Hard rules
 
-```
-[ ] Pick next unchecked test from plan.md
-[ ] Write the test
-[ ] Run → confirm RED (test fails for the right reason)
-[ ] Write minimal code
-[ ] Run → confirm GREEN
-[ ] Mark test done in plan.md
-[ ] Commit (one Green = one commit, message links to plan.md item)
-```
+1. **Never modify or delete an existing test to make code pass.** Additive test
+   changes are normal. Corrections are allowed when independently justified:
+   technical fixes need no ceremony; a semantic correction needs evidence, a
+   rerun, and a renewed RED when a cycle is claimed — otherwise state the gap.
+   Do not edit an expectation just to match the code. Review is for business
+   ambiguity, scope change or an agreed risk, not a default gate.
+2. **A first-run green is a signal, not automatically a failure.** Interpret it
+   by mode; investigate when it claims new behavior.
+3. **Never swallow failures** to make a test pass.
+4. **Doubles only with a reason.** Boundary doubles are normal; internal doubles
+   need justification and never replace the subject under test.
+5. **The oracle is not copied from the code under test.**
+6. **If unsure, stop and ask** rather than guess.
 
-Rules:
+Independent review is risk-based, not a mandatory role split. Commits and human
+checkpoints follow the repository's risk policy; there is no universal
+one-commit-per-cycle rule.
 
-- One test at a time.
-- Only enough code to pass the current test.
-- Don't anticipate future tests (no speculative generalization).
-- Keep tests focused on observable behavior.
-- **Never modify or delete an existing test to make code pass.** See [agent-discipline.md](agent-discipline.md) §1.
+## Optional guardrails
 
-### 4. Refactor
-
-After Green, look for [refactor candidates](refactoring.md):
-
-- [ ] Extract duplication.
-- [ ] Deepen modules (move complexity behind simple interfaces).
-- [ ] Apply SOLID principles where natural.
-- [ ] Consider what new code reveals about existing code.
-- [ ] Run tests after each refactor step.
-- [ ] **If mutation testing is enabled, check the mutation score did not regress.**
-
-**Never refactor while RED.** Get to GREEN first.
-
-### 5. Mutation gate (NEW, before merge)
-
-On the modules touched in this session, run mutation testing (Stryker / mutmut / pitest / cargo-mutants). See [refactoring.md](refactoring.md) §Mutation testing.
-
-- [ ] Mutation score ≥ project threshold (default 70%).
-- [ ] No surviving mutants in the changed lines that represent real behavior loss.
-- [ ] Any accepted survivor documented.
-
-## Checklist per cycle (extended)
-
-```
-[ ] Test describes behavior, not implementation
-[ ] Test uses public interface only
-[ ] Test would survive an internal refactor
-[ ] Test actually contains assertions on the behavior under test
-[ ] Test failed before the production code was written (RED confirmed)
-[ ] Test passes for the right reason (not via swallowed exception or mocked return)
-[ ] No existing test was modified or deleted during this cycle
-[ ] Code is minimal for this test (no speculative features)
-[ ] Mock usage justified (system boundary, see mocking.md)
-[ ] Plan.md item marked done
-[ ] One commit per Green+Refactor cycle
-```
-
-## Hard rules (non-negotiable)
-
-These are encoded in [agent-discipline.md](agent-discipline.md) and ideally enforced by [hooks](hooks.md):
-
-1. Never modify or delete an existing test to make new code pass.
-2. If a test passes on first run, STOP — investigate, do not continue.
-3. Never use `try/except` (or equivalent) to swallow failures in production code.
-4. Never introduce mocks for code you control.
-5. If a test seems wrong, STOP and ask the human — do not "fix" it.
-6. One test at a time. One commit per cycle.
+`hooks.md`, the per-language hook templates, `driver-state-machine.md` and
+`scripts/tdd-verify-cycle.sh` are **optional, strict profiles**. They are useful
+when a team wants deterministic enforcement, but they are opt-in and are not the
+default doctrine. The script proves ordering on the selected target; it does not
+prove that the chronology was honest or that the oracle is business-correct.
 
 ## See also
 
-- [agent-discipline.md](agent-discipline.md) — hard rules and rationale.
-- [plan-template.md](plan-template.md) — the artifact the agent follows.
-- [hooks.md](hooks.md) — executable guardrails.
-- [tests.md](tests.md) — good vs bad test examples.
-- [mocking.md](mocking.md) — when (and only when) to mock.
-- [interface-design.md](interface-design.md) — designing for testability.
-- [deep-modules.md](deep-modules.md) — Ousterhout's principle.
-- [refactoring.md](refactoring.md) — refactor candidates + mutation testing.
-- [driver-state-machine.md](driver-state-machine.md) — the loop as an explicit FSM (reference / autonomous blueprint).
+- `references/test-design.md` — modes, seams, cases, RED/GREEN details.
+- `references/advanced-checks.md` — properties, contracts, mutation, flakiness.
+- `agent-discipline.md` — expanded rules and rationale.
+- `tests.md` — good vs bad test examples (adapted from Pocock).
+- `mocking.md` — real collaborators and boundary doubles (adapted from Pocock).
+- `interface-design.md`, `deep-modules.md` — design for testability.
+- `refactoring.md` — refactor candidates and targeted mutation.
+- `plan-template.md` — optional plan artifact.
+- `hooks.md`, `driver-state-machine.md` — optional strict guardrails.

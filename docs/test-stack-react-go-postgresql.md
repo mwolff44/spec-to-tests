@@ -803,6 +803,13 @@ Combined, it means: you change a Go route, the front's `npm run typecheck` explo
 
 ## 5. Workflow with AI — per layer
 
+> The prompts below are **historical strict-profile recipes**. Adapt two points
+> to the revised doctrine: internal doubles are allowed with a stated reason
+> (never the subject under test), and commit/review cadence follows risk rather
+> than a mandatory stop after every Green. They remain useful as concrete
+> examples of a strict setup. The multi-agent split in §5.3 is likewise an
+> optional strict-profile example, not a required role model.
+
 ### 5.1 React Frontend
 
 Good tasks for an AI agent:
@@ -815,7 +822,7 @@ Good tasks for an AI agent:
 | Generate Storybook stories from a component | High | Visual |
 | Write Playwright E2E from a description | Low-medium | Fragile selectors, to review |
 
-**Typical prompt for Vitest+RTL** (writer-agent):
+**Typical prompt for Vitest+RTL** (writer-agent; strict-profile historical recipe):
 
 ```
 You write component tests with Vitest + React Testing Library.
@@ -859,7 +866,7 @@ Return a structured report.
 | `rapid` properties from docstring | Medium | Good |
 | godog steps from Gherkin | Medium | Check step orthogonality |
 
-**Prompt for writer-agent Go**:
+**Prompt for writer-agent Go** (strict-profile historical recipe):
 
 ```
 You write Go tests using the standard testing package + testify (require/assert).
@@ -1019,10 +1026,12 @@ Cross-stack
 
 | Doc | Contribution for this stack |
 |---|---|
-| `tdd-skill/SKILL.md` | Roles + spec-first + plan.md applicable to both sides |
-| `tdd-skill/agent-discipline.md` | The 10 hard rules the critic-agent must enforce |
-| `tdd-skill/hooks-typescript.md` | Pre-commit hooks + Stryker incremental for React |
-| `tdd-skill/hooks-go.md` | Pre-commit hooks + gremlins for Go |
+| `tdd-skill/SKILL.md` | Modes + framing + optional plan applicable to both sides |
+| `tdd-skill/agent-discipline.md` | The expanded rules the critic-agent may enforce |
+| `tdd-skill/hooks-typescript.md` | Optional strict profile: pre-commit checks + Stryker incremental for React |
+| `tdd-skill/hooks-go.md` | Optional strict profile: pre-commit checks + gremlins for Go |
+| `tdd-skill/references/test-design.md` | Seams, discriminating cases, RED/GREEN interpretation |
+| `tdd-skill/references/advanced-checks.md` | Properties, contracts, targeted mutation |
 | `test-quality-tools-survey.md` | The 4 axes (coverage / mutation / smells / robustness) applied here |
 | `property-based-testing-hypothesis-deep-dive.md` | The PBT pattern, transposed to fast-check and rapid |
 | `test-generation-from-spec.md` | Multi-agent workflow + deterministic tools (Pact = deterministic) |

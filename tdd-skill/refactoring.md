@@ -1,7 +1,8 @@
 # Refactor Candidates
 
-> Source: Matt Pocock, `mattpocock/skills`, base section kept as-is.
-> Extended with the **Mutation testing** section (this fork).
+> Base section adapted from Matt Pocock, `mattpocock/skills`; the **Mutation
+> testing** section is this fork's addition and is a conditional, risk-based
+> check, not a universal gate.
 
 After a TDD cycle, look for:
 
@@ -12,8 +13,8 @@ After a TDD cycle, look for:
 - **Primitive obsession** → Introduce value objects
 - **Existing code** the new code reveals as problematic
 
-Refactor only on green. Run tests after each step. Commit each refactor as a
-separate commit when meaningful.
+Refactor only on green. Run tests after each step. Commit a meaningful refactor
+separately when it helps review.
 
 ---
 
@@ -46,7 +47,8 @@ are tests that should have failed but didn't.
 - **Locally**: after a non-trivial feature cycle, before opening a PR.
 - **CI**: scoped to changed files on PRs. Full-suite mutation runs nightly.
 - **Module thresholds**: set a `low`/`break` mutation score per module
-  (e.g. 80% on `auth/`, 60% on `ui/`). Match the criticality.
+  (for example 80% on `auth/`, 60% on `ui/`). Match the criticality; there is
+  no universal threshold. A threshold is a team risk decision, not a doctrine.
 
 ### Reading survivors
 

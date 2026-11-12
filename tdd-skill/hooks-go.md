@@ -1,8 +1,9 @@
 # Hooks — Go
 
 Concrete, copy-paste-ready guardrails for Go projects using `go test` and
-[`gremlins`](https://github.com/go-gremlins/gremlins) for mutation testing.
-Maps to the four mechanisms in `hooks.md`.
+[`gremlins`](https://github.com/go-gremlins/gremlins) for targeted mutation
+testing. Maps to the six mechanisms in `hooks.md`. Every mechanism is optional;
+the strict profile is opt-in, not the default.
 
 Assumptions:
 - Test files are `*_test.go`, located alongside production code (standard Go layout).
@@ -28,12 +29,14 @@ lefthook install
 
 ---
 
-## §0. Hardened all-in-one gate (recommended)
+## §0. Optional strict profile (opt-in)
 
-Use the shared `scripts/tdd-verify-cycle.sh` with `TDD_LANG=go`. It proves the
-RED→GREEN ordering at commit time instead of trusting the agent — see
+Use the shared `scripts/tdd-verify-cycle.sh` with `TDD_LANG=go` **only when you
+explicitly select the strict profile**. It proves RED→GREEN ordering on the
+selected target at commit time instead of trusting the agent — see
 [hooks-python.md](hooks-python.md) §0 for the full rationale (gates A/B/C, the
-closed escape hatch, the byte-for-byte worktree safety). The same three gates
+additive/refactor constraints, the byte-for-byte worktree safety, and the
+limit: ordering, not chronology or a business oracle). The same three gates
 apply here; Go specifics:
 
 - **Colocated tests.** Files are classified by suffix, not directory:
@@ -41,8 +44,7 @@ apply here; Go specifics:
 - **RED = compile failure is legitimate.** Reverting the staged `*.go` to HEAD
   removes the new symbol, so the package no longer compiles and `go test` fails
   — that *is* the Go RED, exactly like a Python `ImportError`. The gate does not
-  reject it (unlike the legacy §2 `tdd-red.sh` below, whose `build failed` grep
-  over-rejects); real breakage persists into GREEN and is caught there.
+  reject it; real breakage persists into GREEN and is caught there.
 - **Selector syntax:** the marker holds `<pkg>::<TestName>`, e.g.
   `./internal/checkout::TestCheckout_HappyPath`, which the preset turns into
   `go test -count=1 -run '^TestCheckout_HappyPath$' ./internal/checkout`.
@@ -125,7 +127,7 @@ rm .tdd-cycle
 
 ---
 
-## §2. RED must fail first (and for the right reason)
+## §2. RED confirmation — default for TDD and bug-regression missing behavior only
 
 `scripts/tdd-red.sh`:
 
@@ -139,21 +141,24 @@ TEST_NAME="${2:?usage: tdd-red.sh <package path> <test name>}"
 LOG="$(mktemp)"
 
 if go test -run "^${TEST_NAME}$" -count=1 "$PKG" > "$LOG" 2>&1; then
-  echo "ERROR: test passed on first run — discipline §2. STOP and investigate." >&2
+  echo "NO RED: the test passed on first run. This wrapper is for TDD/bug-regression missing behavior only. If this is characterization or tests-only, keep the useful coverage and reclassify; refactoring does not use this wrapper. Never force production code or an expected value." >&2
   cat "$LOG" >&2
   exit 1
 fi
 
-# Reject infrastructure errors (compile errors, missing packages, no tests)
-if grep -E '(cannot find package|build failed|undefined:|no test files|^FAIL.*\[build failed\])' "$LOG" > /dev/null; then
-  echo "ERROR: test failed for the WRONG reason (build/infra). Fix the test, re-run." >&2
+# Reject only unrelated infrastructure errors. A compile failure from an absent
+# API (undefined:, build failed) is a legitimate structural RED in Go; the
+# agent must inspect it, not reject it automatically.
+if grep -E '(cannot find package|no test files)' "$LOG" > /dev/null; then
+  echo "ERROR: test failed for the WRONG reason (infra). Fix the test, re-run." >&2
   cat "$LOG" >&2
   exit 1
 fi
 
-# Ensure the failure is a real test failure, not a panic with no assertions
-if ! grep -E '(--- FAIL:|FAIL\s+'"$PKG"')' "$LOG" > /dev/null; then
-  echo "ERROR: test did not produce a normal FAIL — possible panic or skip." >&2
+# Ensure the failure is either a normal test failure or a structural compile
+# failure (missing symbol / absent API).
+if ! grep -E '(--- FAIL:|FAIL\s+'"$PKG"'|undefined:|build failed|\[build failed\])' "$LOG" > /dev/null; then
+  echo "ERROR: test did not produce a normal FAIL or a structural RED — possible panic or skip." >&2
   cat "$LOG" >&2
   exit 1
 fi
@@ -166,25 +171,25 @@ Usage:
 
 ```bash
 ./scripts/tdd-red.sh ./internal/checkout TestCheckout_HappyPath
-# proceed to GREEN only if .tdd-red exists
+# TDD/bug-regression missing behavior only. If the test is already green,
+# reclassify (characterization/tests-only) and keep the useful coverage.
 [[ -f .tdd-red ]] && go test ./... && rm .tdd-red
 ```
 
 ---
 
-## §3. Lock test files between RED and Green
+## §3. Review the test diff (no file locking)
+
+Before the commit, inspect the test diff:
 
 ```bash
-chmod a-w internal/checkout/checkout_test.go    # before Green
-chmod u+w internal/checkout/checkout_test.go    # after Green commit
+git diff --cached -- '*.go'
 ```
 
-Alternative via git:
-
-```bash
-git update-index --skip-worktree internal/checkout/checkout_test.go
-git update-index --no-skip-worktree internal/checkout/checkout_test.go
-```
+Confirm that test changes are additive or are an independently justified
+correction (review only for business ambiguity, scope change or agreed risk). Do **not** use `chmod a-w`, `git update-index --skip-worktree` or
+`--assume-unchanged` as a lock: those hide or confuse the diff and are not an
+integrity boundary. Keep the diff visible.
 
 ---
 
@@ -218,8 +223,9 @@ dry-run: false
 
 test-cpu: 0          # use all cores
 tags: ""             # build tags
-threshold-efficacy: 70.0  # killed / (killed + lived) ≥ 70%
-threshold-mcover:   60.0  # mutant coverage ≥ 60%
+# Thresholds are per-module examples chosen by risk; there is no universal value.
+threshold-efficacy: 80.0  # illustrative: killed / (killed + lived)
+threshold-mcover:   65.0  # illustrative: mutant coverage
 ```
 
 `.github/workflows/mutation.yml`:
@@ -248,21 +254,28 @@ jobs:
       - name: Determine changed Go packages
         id: changed
         run: |
-          # Map changed *.go files to their containing package paths
+          # Map changed *.go files to their containing package paths.
           PKGS=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- '*.go' \
             | grep -v '_test\.go$' \
             | xargs -n1 dirname \
             | sort -u \
-            | sed 's|^|./|' \
-            | tr '\n' ' ')
-          echo "pkgs=$PKGS" >> "$GITHUB_OUTPUT"
+            | sed 's|^|./|')
+          {
+            echo 'pkgs<<EOF'
+            printf '%s\n' "$PKGS"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
           echo "Changed packages: $PKGS"
 
       - name: Run gremlins on changed packages
         if: steps.changed.outputs.pkgs != ''
+        env:
+          CHANGED_PKGS: ${{ steps.changed.outputs.pkgs }}
         run: |
-          set -o pipefail
-          gremlins unleash ${{ steps.changed.outputs.pkgs }} \
+          # CHANGED_PKGS is newline-delimited (the delimiter produced above).
+          # Read it into an array and pass each package as one quoted argument.
+          mapfile -t packages <<< "$CHANGED_PKGS"
+          gremlins unleash "${packages[@]}" \
             --config gremlins.yaml \
             --output gremlins-report.json
         # gremlins exits non-zero when thresholds are not met
@@ -383,23 +396,13 @@ CI `grep` guards (`.github/workflows/lint.yml`):
 
 ---
 
-## §6. Agent role split (optional, advanced)
+## §6. Independent review by risk (optional, advanced)
 
-Claude Code `settings.json`:
-
-```json
-{
-  "permissions": {
-    "tools": {
-      "Edit":  { "paths": ["**/*_test.go"] },
-      "Write": { "paths": ["**/*_test.go"] },
-      "Read":  { "paths": ["**/*.go"] }
-    }
-  }
-}
-```
-
-Inverse for implementer session.
+When the risk justifies it, have another person or agent review the claim, the
+oracle's provenance and the diff. This is a **review process**, not a mandatory
+role split and not a harness configuration. The skill contains no tool or
+permission fields: use your environment's review mechanism and keep the diff
+visible.
 
 ---
 
@@ -422,12 +425,13 @@ in mind in the system prompt:
 
 ---
 
-## Minimum viable Go setup (2 things)
+## Minimum viable Go setup (optional)
 
-1. `scripts/tdd-verify-cycle.sh` as pre-commit with `TDD_LANG=go` (§0) — proven
-   RED→GREEN, escape hatch closed, folds §1 + §2.
-2. `gremlins` GitHub Action with thresholds in `gremlins.yaml` (§4) — the
-   assertion-quality backstop `--no-verify` can't skip.
+1. `scripts/tdd-verify-cycle.sh` as an **opt-in** pre-commit with `TDD_LANG=go`
+   (§0) — proven RED→GREEN on the selected target, with the additive and
+   refactor constraints stated in the strict profile.
+2. `gremlins` GitHub Action with per-module thresholds in `gremlins.yaml` (§4)
+   — the assertion-quality backstop `--no-verify` can't skip.
 
 Plus, near-zero-cost: enable `paralleltest` + `errcheck` + `thelper` in
 `golangci-lint`. These catch a large share of agent-generated test smells
