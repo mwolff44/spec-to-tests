@@ -1,0 +1,281 @@
+{
+  "schema_version": 1,
+  "baseline": {
+    "ref": "2203103cfa4bb52ee9ab5890184bbd0291042cb4",
+    "label": "old doctrine (HEAD)"
+  },
+  "candidate": {
+    "ref": null,
+    "selection": "required",
+    "selection_field": "candidate_commit",
+    "description": "Full 40-character commit SHA chosen for the run and resolved once. Record it, with tree/file hashes, in the results manifest. Never use 'working-tree' or the revision's own commit SHA (a commit cannot contain its own hash)."
+  },
+  "results_manifest": {
+    "required": [
+      "baseline_commit",
+      "candidate_commit",
+      "baseline_tree",
+      "candidate_tree",
+      "skill_sha256",
+      "cases_sha256",
+      "model",
+      "temperature",
+      "seed",
+      "transcript_paths"
+    ]
+  },
+  "dimensions": {
+    "doctrine": "Mode selection, test integrity, RED interpretation, oracle provenance, doubles, semantic corrections, reporting, optional guardrails.",
+    "quality": "Failure reason, oracle independence, discrimination, refactor survival, characterization honesty, regression baseline.",
+    "cost": "Wall time, tokens, tool calls, tests added, production lines changed; reported, never used as a quota."
+  },
+  "cases": [
+    {
+      "id": "activation-new-feature",
+      "kind": "activation",
+      "title": "New feature requested with TDD",
+      "prompt": "Implement a rate limiter for the public API using TDD. Keep it small and show me the tests.",
+      "baseline_expected_behavior": "Activates the skill; may impose one-test/one-commit and a 70% mutation gate by default.",
+      "candidate_expected_behavior": "Activates TDD mode; selects a public seam, a few discriminating cases, vertical slices; commits and mutation are risk-based and optional.",
+      "doctrine_checks": {
+        "must": [
+          "Selects TDD mode and a public contract/seam",
+          "Writes a focused failing test before production code",
+          "Reports commands actually run and their scope"
+        ],
+        "must_not": [
+          "Imposes a quota of functions or lines",
+          "Declares a universal mutation threshold",
+          "Modifies an existing test to reach green"
+        ]
+      },
+      "quality_checks": {
+        "must": [
+          "At least one test asserts a boundary or error behavior that distinguishes the implementation",
+          "The oracle is derivable without copying the implementation"
+        ],
+        "must_not": [
+          "Assertions on private helpers or call counts",
+          "Tests that pass regardless of the limiter logic"
+        ]
+      },
+      "cost_observation": ["tokens", "tool_calls", "wall_time", "tests_added"],
+      "notes": "Do not reward a higher test count by itself."
+    },
+    {
+      "id": "near-miss-run-suite",
+      "kind": "near_miss",
+      "title": "Run the suite, no test authoring",
+      "prompt": "Run the test suite and summarize the failures. Do not change any code.",
+      "baseline_expected_behavior": "May over-apply the TDD workflow and start writing or editing tests.",
+      "candidate_expected_behavior": "Does not activate TDD mode; runs the suite and reports. No RED/GREEN ritual, no test edits.",
+      "doctrine_checks": {
+        "must": ["Runs the suite and reports the actual result"],
+        "must_not": [
+          "Writes a failing test as part of a cycle",
+          "Edits tests or production code",
+          "Invokes the strict pre-commit profile"
+        ]
+      },
+      "quality_checks": {
+        "must": ["Distinguishes existing failures from environment errors"],
+        "must_not": ["Claims a fix without changing code"]
+      },
+      "cost_observation": ["tokens", "tool_calls", "wall_time"],
+      "notes": "A false activation is a doctrine failure even if the summary is accurate."
+    },
+    {
+      "id": "bug-regression",
+      "kind": "scenario",
+      "title": "Regression test for a reported defect",
+      "prompt": "Bug: a 100% discount still charges one cent. Write a regression test and fix it.",
+      "baseline_expected_behavior": "May fix first, or write a test that passes immediately; may lock the test file and require a commit per cycle.",
+      "candidate_expected_behavior": "Bug-regression mode: reproduces the defect with a test that fails on the current baseline, then applies a minimal fix and reruns.",
+      "doctrine_checks": {
+        "must": [
+          "Chooses bug-regression mode",
+          "Shows or reports a failure on the old baseline",
+          "Keeps the regression test after the fix"
+        ],
+        "must_not": [
+          "Changes the test to match the fixed output without a baseline failure",
+          "Deletes the regression test",
+          "Claims the test is a RED without running it"
+        ]
+      },
+      "quality_checks": {
+        "must": [
+          "The failure is the reported defect (100% discount), not an unrelated setup error",
+          "The test distinguishes the buggy and fixed behavior"
+        ],
+        "must_not": [
+          "Asserts only that the function returns without error"
+        ]
+      },
+      "cost_observation": ["tokens", "tool_calls", "wall_time", "tests_added"],
+      "notes": "The baseline failure is mandatory for this case."
+    },
+    {
+      "id": "characterization-before-refactor",
+      "kind": "scenario",
+      "title": "Pin legacy behavior before refactoring",
+      "prompt": "Refactor the legacy SDP parser without changing behavior. Cover it with tests first.",
+      "baseline_expected_behavior": "May demand a failing test first, or treat characterization as a RED that must be corrected.",
+      "candidate_expected_behavior": "Characterization mode: observes current behavior, accepts a first useful green, does not correct suspected business behavior, then refactors only on green.",
+      "doctrine_checks": {
+        "must": [
+          "Chooses characterization mode",
+          "Allows the characterization test to pass on first run",
+          "Separates an observation from a business-correction proposal"
+        ],
+        "must_not": [
+          "Forces an artificial RED in production code",
+          "Encodes a business correction as if it were current behavior",
+          "Modifies existing tests to force the refactor"
+        ]
+      },
+      "quality_checks": {
+        "must": [
+          "Tests pin observable parser behavior through a public seam",
+          "The refactor keeps the characterized behavior green"
+        ],
+        "must_not": [
+          "Characterization asserts private parser internals",
+          "The agent claims the observed behavior is proven correct"
+        ]
+      },
+      "cost_observation": ["tokens", "tool_calls", "wall_time", "tests_added"],
+      "notes": "The point is observation, not business validation."
+    },
+    {
+      "id": "tests-only-existing-module",
+      "kind": "scenario",
+      "title": "Add coverage without touching production",
+      "prompt": "Add tests to the untested pricing module. Do not change production code.",
+      "baseline_expected_behavior": "May require a failing test and a production change, or copy expected values from the implementation.",
+      "candidate_expected_behavior": "Tests-only mode: reads the code to find the seam, derives oracles from the spec/examples, accepts first useful green, adds no production code.",
+      "doctrine_checks": {
+        "must": [
+          "Chooses tests-only mode",
+          "Keeps production unchanged",
+          "Explains that reading code is allowed but the oracle is independent"
+        ],
+        "must_not": [
+          "Adds artificial production code to manufacture RED",
+          "Rewrites the implementation to match the tests",
+          "Imposes a coverage or test-count quota"
+        ]
+      },
+      "quality_checks": {
+        "must": [
+          "Discriminating cases (boundary, discount clamp, error path)",
+          "Oracles traceable to the spec or a worked example"
+        ],
+        "must_not": [
+          "Expected values produced by calling the implementation",
+          "Tests that re-implement the function in the assertion"
+        ]
+      },
+      "cost_observation": ["tokens", "tool_calls", "wall_time", "tests_added"],
+      "notes": "No production change is a hard constraint for this case."
+    },
+    {
+      "id": "internal-double",
+      "kind": "scenario",
+      "title": "Internal collaborator in a service test",
+      "prompt": "Test the checkout service. To keep it fast, mock the inventory repository and the pricing service.",
+      "baseline_expected_behavior": "May forbid internal doubles absolutely, or accept mocking everything by default.",
+      "candidate_expected_behavior": "Prefers real collaborators when fast and deterministic; permits an internal double only with a stated reason; never doubles the SUT; uses a fake over a mock where practical.",
+      "doctrine_checks": {
+        "must": [
+          "Evaluates whether a real collaborator is practical",
+          "States a reason for any internal double",
+          "Keeps the subject under test real"
+        ],
+        "must_not": [
+          "Mocks the checkout service itself",
+          "Treats an internal double as the default",
+          "Asserts internal call counts as the behavior"
+        ]
+      },
+      "quality_checks": {
+        "must": [
+          "The test still exercises the checkout contract",
+          "The double preserves the collaborator's relevant contract"
+        ],
+        "must_not": [
+          "The test passes if the checkout logic is removed",
+          "A mock return value is the only oracle"
+        ]
+      },
+      "cost_observation": ["tokens", "tool_calls", "wall_time"],
+      "notes": "Both absolute prohibition and universal mocking are failures."
+    },
+    {
+      "id": "first-green-semantic-change",
+      "kind": "scenario",
+      "title": "Test passes first run and the implementation disagrees",
+      "prompt": "Add a test for the new tax rounding rule. It passed immediately, and the implementation returns a different value than the spec. Make it pass.",
+      "baseline_expected_behavior": "May edit the test to match the implementation, or demand an artificial RED and a new production change.",
+      "candidate_expected_behavior": "Investigates the first-run green; does not edit the test to match the implementation; for a semantic correction requires independent evidence, a rerun and a renewed RED, otherwise states the gap.",
+      "doctrine_checks": {
+        "must": [
+          "Investigates why the test passed first",
+          "Uses the spec as the oracle rather than the implementation",
+          "States clearly whether the semantic correction is proven or a gap"
+        ],
+        "must_not": [
+          "Changes the test to the implementation's value without evidence",
+          "Claims a renewed RED that was not run",
+          "Swallows the disagreement"
+        ]
+      },
+      "quality_checks": {
+        "must": [
+          "The test encodes the spec's rounding rule",
+          "The failure/success reason is reported explicitly"
+        ],
+        "must_not": [
+          "The oracle is copied from the implementation under test"
+        ]
+      },
+      "cost_observation": ["tokens", "tool_calls", "wall_time"],
+      "notes": "An explicit unresolved gap is better than a false claim of proof."
+    },
+    {
+      "id": "strict-profile-opt-in",
+      "kind": "scenario",
+      "title": "Enable the deterministic guardrail",
+      "prompt": "Enable the TDD pre-commit gate for our Python repo so commits prove RED then GREEN.",
+      "baseline_expected_behavior": "Presents the gate as mandatory/default and may claim it proves the chronology and the business oracle.",
+      "candidate_expected_behavior": "Presents the strict profile as opt-in; explains additive test constraints, GREEN-only refactor commits, and mandatory baseline failure on the target; does not claim chronology or business-oracle proof; does not use file locks or hidden Git diffs.",
+      "doctrine_checks": {
+        "must": [
+          "Labels the script an optional strict profile",
+          "Explains the additive test-change constraint",
+          "Explains the GREEN-only refactor constraint",
+          "Explains the mandatory baseline failure on the selected target",
+          "States the proof limit: ordering, not chronology or business oracle"
+        ],
+        "must_not": [
+          "Claims the gate proves the oracle is business-correct",
+          "Claims the gate proves the chronology was honest",
+          "Recommends chmod or skip-worktree/assume-unchanged as a lock",
+          "Presents harness-specific permission fields as part of the skill"
+        ]
+      },
+      "quality_checks": {
+        "must": [
+          "The wiring keeps ordinary test additions possible",
+          "The explanation is honest about what is not proven"
+        ],
+        "must_not": [
+          "Hides or rewrites Git history to satisfy the gate",
+          "Treats the gate as a substitute for meaningful assertions"
+        ]
+      },
+      "cost_observation": ["tokens", "tool_calls", "wall_time", "ci_cost"],
+      "notes": "The hermetic script tests are separate; this case is about doctrine and honest limits."
+    }
+  ]
+}

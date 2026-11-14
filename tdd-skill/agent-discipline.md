@@ -1,119 +1,176 @@
-# Agent Discipline — Hard Rules
+# Agent Discipline — Rules and Rationale
 
-> These rules exist because AI agents have documented failure modes under TDD that
-> humans rarely exhibit. Sources: Beck (Pragmatic Engineer 2025), arxiv 2602.00409
-> (over-mocked tests), arxiv 2602.07900 (incorrect oracles), ThoughtWorks Radar v33.
->
-> Each rule has a **WHY** (the failure mode it prevents) and a **HOW** (how the
-> agent must behave). If a rule conflicts with apparent task progress, the rule wins.
+> Expanded behavioral rules for AI agents. `SKILL.md` is the compact doctrine;
+> this file explains the failure modes. The guardrails in `hooks.md` are
+> **optional** and enforce only a subset — they are not the source of the rules.
+
+Each rule has a **WHY** (the failure it prevents) and a **HOW** (how the agent
+should behave). If a rule conflicts with apparent task progress, the rule wins.
+A rule that is not marked non-negotiable can be relaxed with an explicit,
+recorded reason — never silently.
 
 ## §1. Never modify or delete an existing test to make code pass
 
-**WHY** — Documented pattern: confronted with a red test, agents tend to "fix" the test rather than the code. The test is the spec; modifying it silently destroys the contract.
+**WHY** — Confronted with a red test, agents tend to "fix" the test rather than
+the code. The test is the contract; editing it to reach green destroys the
+evidence.
 
 **HOW**:
-- If the test seems wrong: **STOP**. Surface the suspicion to the human with concrete reasoning. Wait for explicit approval before any test change.
-- Allowed test changes during Green: **none**.
-- Allowed test changes outside Green: only when the spec itself is being revised, and the change is reviewed independently of the production code change.
-- Renaming a test, reordering its assertions, "clarifying" its setup mid-cycle: not allowed.
+- **Additive** test changes are normal: new tests, new cases, stronger
+  assertions. They do not need a special ceremony.
+- If an existing test is independently shown to be wrong, correct it when the
+  evidence justifies it — technical or semantic — separately from the production
+  change that motivated it. A semantic correction needs evidence, a rerun and a
+  renewed RED when a cycle is claimed; otherwise state the gap. Review only if
+  the business behavior is ambiguous, scope changes, or an agreed risk requires
+  it.
+- Renaming, reordering or deleting assertions to make a failure disappear is
+  forbidden. Do not hide test edits in a diff or rewrite history.
+- There is no file-immutability requirement. Protect the *contract*, not the
+  bytes of the file.
+- The optional strict profile enforces additive-only diffs for new-behavior
+  cycles; that is an opt-in team choice, not universal doctrine.
 
-**Enforcement** — Ideally a pre-commit hook (see `hooks.md`) detecting modifications to test files during a cycle, or read-only test files between RED and Green.
+## §2. A first-run green needs interpretation
 
-## §2. If a test passes on first run, STOP
+**WHY** — A test that passes without a code change can mean the behavior already
+exists, the test asserts nothing meaningful, or the mode is characterization.
+Continuing blindly produces "perpetually green" tests.
 
-**WHY** — A test that goes green without any code change either (a) tests behavior that already exists (and the cycle is moot), or (b) tests nothing meaningful (assertion vide, oracle dégénéré). Continuing produces "perpetually green" tests — the failure mode ThoughtWorks Radar v33 flags as critical.
-
-**HOW**:
-- After writing a test, run it. Expect RED.
-- If GREEN: do not write production code. Investigate:
-  - Is the behavior already implemented? Then this test duplicates coverage — discard or replace.
-  - Is the assertion meaningful? Does it actually exercise the claimed behavior?
-  - Is there a swallowed exception or default value masking the failure?
-- Only resume the cycle when the test fails for the right reason.
+**HOW** — Interpret by mode:
+- **TDD (new behavior)**: stop and investigate. Is the behavior already
+  implemented? Is the assertion meaningful? Is a swallowed exception or default
+  masking the failure?
+- **Tests-only / characterization**: a first-run green can be the **first useful
+  green**. Do not invent production code to manufacture a RED.
+- **Bug regression**: the test must fail on the old baseline; a first-run green
+  means it does not reproduce the defect yet.
+- **Refactoring**: the suite is expected to be green already.
 
 ## §3. Never swallow failures in production code
 
-**WHY** — A bare `try/except` or equivalent makes a red test go green by hiding the error. The test passes; the bug ships.
+**WHY** — A bare `try/except` or equivalent makes a red test go green by hiding
+the error. The test passes; the bug ships.
 
 **HOW**:
-- No `except:` without a specific exception type and a comment on WHY this exception is expected.
-- No `catch (e) {}` empty blocks.
+- No `except:` without a specific exception type and a comment on why the
+  exception is expected.
+- No empty `catch` blocks.
 - No default fallback values that mask a missing implementation.
-- If error handling is the behavior under test, it has its own test that asserts the error path.
+- If error handling is the behavior under test, it has its own test that asserts
+  the error path.
 
-## §4. Never mock code you control
+## §4. Use doubles with a reason
 
-**WHY** — Empirical study (arxiv 2602.00409): agents over-mock by default because it's the path of least resistance. The resulting tests pass but verify nothing real (test theatre).
+**WHY** — Agents can over-mock by default, producing tests that pass but verify
+nothing. The opposite failure — forbidding every internal double — also pushes
+agents toward brittle, slow tests.
 
 **HOW**:
-- Mock only at **system boundaries**: external APIs, network, time, randomness, the file system (sometimes), the database (prefer a real test DB or testcontainers).
-- For internal collaborators: use real instances.
-- If a real instance is hard to use in a test, that is a **design signal** — fix the coupling rather than mocking.
+- Prefer a **real collaborator** when it is fast, deterministic and practical.
+- Boundary doubles are normal: external APIs, network, time, randomness, and an
+  unavailable or impractical external service.
+- An **internal double** (for code you control) is allowed with a stated reason,
+  for example a slow or non-deterministic dependency. Prefer a small fake with a
+  faithful contract over call-count mocking.
+- **Never double the subject under test.** The behavior the test claims to
+  verify must be real.
+- If a real instance is hard to use, treat that as a design signal — but that is
+  a signal, not an absolute prohibition on doubles.
 - See [mocking.md](mocking.md) for the full guidance.
 
 ## §5. Verify the test fails for the right reason
 
-**WHY** — A test can be RED for the wrong reason (typo in the import, syntax error, wrong fixture). If you then write code and it goes GREEN, you have proven nothing. Documented in *Rethinking the Value of Agent-Generated Tests* (arxiv 2602.07900).
+**WHY** — A test can be RED because of a typo in the import, a syntax error or a
+missing fixture. Writing code after that proves nothing.
 
 **HOW**:
-- After RED, read the failure message. It must mention the assertion you care about, not an unrelated error.
-- If the failure is "module not found" or "fixture missing", fix the test infrastructure first, re-confirm RED, then proceed.
+- After RED, read the failure. It must mention the assertion or the absent
+  public contract you care about.
+- A **missing symbol, missing API or compile failure is a legitimate structural
+  RED** when the contract does not exist yet.
+- An unrelated import, fixture or environment error is **not** RED. Fix the
+  setup, rerun, and only then proceed.
+- Do not count a failure you cannot attribute to the claim under test.
 
-## §6. The test's oracle must be derivable from the spec, not the code
+## §6. The oracle comes from the spec or observation, not from the code
 
-**WHY** — If the agent reads the implementation to figure out "what should the expected value be?", the test becomes a tautology — it asserts that the code does what the code does. This is the oracle problem in LLM-generated tests.
-
-**HOW**:
-- The expected value comes from the spec (see SKILL.md §0), from a worked example, from a reference implementation, or from domain knowledge.
-- If the agent cannot determine the expected value without reading the implementation under test, STOP and ask.
-- Property-based testing (Hypothesis, fast-check, proptest) is a good defense: properties are derivable without an oracle per case.
-
-## §7. One test, one cycle, one commit
-
-**WHY** — Batching cycles loses traceability. If something breaks three behaviors later, bisecting is painful. Beck's augmented-coding workflow commits after each Green-then-Refactor.
+**WHY** — If the agent reads the implementation to decide the expected value,
+the test becomes a tautology: it asserts that the code does what the code does.
 
 **HOW**:
-- After Green and any refactor, commit. Conventional commit message referencing the plan.md item: `test: <behavior>` or `feat: <behavior>` with a body linking to the plan.
+- Reading production code is allowed — to find the seam, understand a
+  dependency, or reproduce a bug.
+- The expected value comes from the spec, a worked example, domain knowledge, a
+  reference implementation, or characterization of observed behavior.
+- Characterization records what the system does; it does not claim the behavior
+  is business-correct.
+- If the expected value cannot be determined without copying the implementation,
+  stop and ask.
+- Property-based testing is a useful defense: a relation is often derivable
+  without a per-case oracle.
+
+## §7. Cadence follows risk
+
+**WHY** — Batching or forcing a commit/approval after every test does not fit
+every repo. The useful invariant is traceability and honest verification, not a
+universal rhythm.
+
+**HOW**:
+- Commit at a coherent point and follow the repository's review policy.
+- Human checkpoints are by risk: security-sensitive, hard-to-reverse,
+  semantically ambiguous, or large changes deserve earlier review.
+- There is no universal one-test/one-commit rule and no mandatory approval per
+  cycle.
+- If the optional strict profile is selected, its commit mechanics apply to that
+  profile only.
 - Do not stage unrelated changes.
-- If a refactor reveals an unrelated issue, note it in `plan.md` under a "follow-ups" section. Do not fix it in this cycle.
 
 ## §8. No speculative generalization
 
-**WHY** — Agents tend to "future-proof" by adding parameters, options, abstractions not exercised by any test. This adds untested surface and bloats the interface.
+**WHY** — Agents tend to "future-proof" by adding parameters, options and
+abstractions no test exercises. This adds untested surface and bloats the
+interface.
 
 **HOW**:
-- The Three Laws of TDD (Martin): write the minimum test to fail, write the minimum code to pass.
-- New parameters, options, flags: only if a test requires them.
-- Generalization is a **refactor**, after Green, driven by duplication or a new test, never speculative.
+- Write the minimum code to satisfy the current claim.
+- New parameters, options or flags only when a test requires them.
+- Generalization is a refactor after green, driven by duplication or a new test,
+  never speculative.
 
 ## §9. No comments explaining WHAT the code does
 
-**WHY** — Agents generate verbose explanatory comments restating the code. These rot, mislead, and bloat. They do not explain WHY.
+**WHY** — Agents generate verbose comments restating the code. These rot, mislead
+and bloat; they do not explain why.
 
 **HOW**:
-- A comment is allowed only when it explains a non-obvious WHY: a hidden constraint, a workaround, a counter-intuitive invariant, a perf trade-off.
-- No docstring restating function name and parameter types.
+- A comment is allowed only for a non-obvious why: a hidden constraint, a
+  workaround, a counter-intuitive invariant, a performance trade-off.
+- No docstring restating the function name and parameter types.
 - Tests are the executable documentation of behavior.
 
 ## §10. If unsure, STOP and ask
 
-**WHY** — Agents prefer to produce output rather than ask. This produces plausible drift. The cost of asking is low; the cost of silent drift is high.
+**WHY** — Agents prefer to produce output rather than ask. The cost of asking is
+low; the cost of silent drift is high.
 
 **HOW**:
 - Ambiguity in the spec → ask.
-- Test seems wrong → ask (§1).
-- Test passes on first run → ask (§2).
-- Mocking required but boundary unclear → ask (§4).
-- Oracle unclear → ask (§6).
+- A test seems wrong → ask (§1).
+- A first-run green is unexplained → ask (§2).
+- A double is needed but the boundary or reason is unclear → ask (§4).
+- The oracle is unclear → ask (§6).
 - "Asking" means: write the question, wait. Do not guess.
 
 ## Rule precedence
 
-If rules conflict, the precedence is:
+1. §1 (do not edit a test to make code pass) and §3 (do not swallow failures)
+   are never broken.
+2. §4 (doubles) is applied with a stated reason; it is not an absolute
+   prohibition.
+3. §10 (ask) always applies when in doubt.
+4. Other rules can be relaxed with an explicit, recorded reason.
 
-1. §1 (don't touch the test) — never broken.
-2. §3 (don't swallow failures) — never broken.
-3. §4 (don't mock what you control) — broken only with explicit human approval and a comment.
-4. §10 (ask) — when in doubt, this always applies.
-
-The other rules can be relaxed with **explicit, logged** human approval per occurrence. Document the deviation in the commit message or plan.md.
+Independent review and role separation are **risk-based options**, not mandatory
+roles. No particular harness, permission model or file-locking mechanism is
+required by this doctrine.

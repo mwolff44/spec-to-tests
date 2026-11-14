@@ -10,9 +10,11 @@ The central idea of the series: in the age of AI agents capable of generating co
 
 ```
 spec-to-tests/
-├── tdd-skill/                    Extended TDD skill for Claude Code,
-│                                 hardened to discipline AI agents.
+├── tdd-skill/                    Extended TDD skill for AI agents,
+│                                 hardened to discipline them.
 │                                 Fork of Matt Pocock's skill.
+│                                 Core doctrine + optional strict profiles,
+│                                 conditional references, and an eval protocol.
 │
 ├── examples/
 │   ├── pbt-sip/                  Property-based testing with Hypothesis
@@ -72,25 +74,31 @@ cd ../api && go test -tags=pact ./pacts/...   # provider (verifies the pact)
 cd .. && docker compose up --build
 ```
 
-### 3. Using the TDD skill with Claude Code
+### 3. Using the TDD skill with an AI agent
 
 ```bash
-cp -r tdd-skill ~/.claude/skills/
-# In Claude Code, invoke via TDD mention or explicitly.
+cp -r tdd-skill <your-agent-skill-directory>/
+# Invoke via a TDD mention or explicitly.
 ```
 
 The skill provides:
-- An `agent-discipline.md` with 10 hard rules.
-- A `plan.md` artifact that the agent follows.
-- `scripts/tdd-verify-cycle.sh` — a hardened pre-commit that **proves** the
-  RED→GREEN cycle at commit time (not self-reported), for Python/Go/TS.
-- Per-language *hook* templates and a mutation-testing CI gate.
-- `driver-state-machine.md` — the loop as an explicit FSM (reference / blueprint
-  for an autonomous driver).
+- A compact core (`SKILL.md`) with mode-aware TDD, bug-regression,
+  characterization, refactoring and tests-only workflows.
+- An expanded `agent-discipline.md` with rules and rationale.
+- Conditional references: `references/test-design.md` and
+  `references/advanced-checks.md`.
+- An optional `plan.md` artifact for larger changes.
+- Optional, strict, opt-in guardrails: `scripts/tdd-verify-cycle.sh` proves
+  RED→GREEN ordering on a selected target for Python/Go/TS; it does not prove
+  the chronology or a business-correct oracle.
+- Optional per-language hook templates and targeted mutation checks; no
+  universal mutation threshold.
+- An optional FSM reference (`driver-state-machine.md`) and an eval protocol
+  (`evals/`) that has not been executed as an agentic benchmark.
 
 ## Attribution
 
-The `tdd-skill/` folder is an **extended fork** of Matt Pocock's TDD skill — [`mattpocock/skills`](https://github.com/mattpocock/skills/tree/main/skills/engineering/tdd). The additions (agent discipline, persistent plan, per-language *hooks*, mutation testing CI) are documented in `tdd-skill/README.md`. All of Pocock's original contributions are preserved and clearly credited.
+The `tdd-skill/` folder is an **extended fork** of Matt Pocock's TDD skill — [`mattpocock/skills`](https://github.com/mattpocock/skills/tree/main/skills/engineering/tdd). The additions (agent discipline, optional plan, optional per-language *hooks*, targeted mutation checks, eval protocol) are documented in `tdd-skill/README.md`. All of Pocock's original contributions are preserved and clearly credited; files whose content was revised are marked as adapted rather than kept as-is. The repository is MIT-licensed, and the upstream provenance is recorded in `tdd-skill/README.md`.
 
 The `pbt-sip/` and `billing-react-go/` demos are original.
 

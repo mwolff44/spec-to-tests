@@ -666,8 +666,9 @@ func TestReverseInvolution(t *testing.T) {
 | Doc | Relevant section | Link |
 |---|---|---|
 | Blog series article 1: "AI didn't kill tests, it made them indispensable" | Workflow and IA, Oracle problem | PBT mitigates the oracle problem by transforming the oracle from a value to a relation |
-| `tdd-skill/SKILL.md` | §Roles, §Spec-first | Properties are the spec's formalization — a human writes the property, AI proposes variants |
+| `tdd-skill/SKILL.md` | Choosing the mode and framing the change | Properties are the spec's formalization — a human writes the property, AI proposes variants |
 | `tdd-skill/agent-discipline.md` | §6 (oracle from spec, not code) | PBT is the concrete tool that makes this rule actionable |
+| `tdd-skill/references/advanced-checks.md` | Properties and targeted checks | Conditional depth for PBT and related checks |
 | `test-quality-tools-survey.md` | §4 Robustness | This deep-dive expands the PBT section from the survey |
 | `tdd-skill/hooks-python.md` | §4 Mutation | Mutation + PBT are complementary: mutation measures assertion strength; PBT amplifies it by exploring the space |
 

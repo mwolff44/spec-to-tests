@@ -1,7 +1,8 @@
 # Hooks — Python
 
 Concrete, copy-paste-ready guardrails for Python projects using `pytest`.
-Maps to the four mechanisms in `hooks.md`.
+Maps to the six mechanisms in `hooks.md`. Every mechanism is optional; the
+strict profile is opt-in, not the default.
 
 Assumptions:
 - Test files live under `tests/` and are named `test_*.py`.
@@ -26,19 +27,21 @@ Then drop the `.pre-commit-config.yaml` snippets shown below into the repo root.
 
 ---
 
-## §0. Hardened all-in-one gate (recommended)
+## §0. Optional strict profile (opt-in)
 
 `scripts/tdd-verify-cycle.sh` is **one language-agnostic script** (pick a preset
 with `TDD_LANG=python|go|ts`, see [hooks-go.md](hooks-go.md) §0 /
-[hooks-typescript.md](hooks-typescript.md) §0). It replaces the *self-reported*
-pair below (§1 marker guard + §2 `tdd-red.sh`) with a single pre-commit that
-**proves** the cycle instead of trusting the agent's narration. It folds three
-gates into one chokepoint (the commit):
+[hooks-typescript.md](hooks-typescript.md) §0). It is an **explicitly selected
+strict profile**, not the default doctrine. It replaces the *self-reported* pair
+below (§1 marker guard + §2 `tdd-red.sh`) with a single pre-commit that proves
+ordering on the selected target instead of trusting the agent's narration. It
+folds three gates into one chokepoint (the commit):
 
-- **A — cycle declaration is mandatory.** Production code staged with no
-  `.tdd-cycle` is rejected. This closes the escape hatch of §1 (whose
-  `[[ -f marker ]] || exit 0` meant "no marker ⇒ pass"): the default is now
-  *deny*, and an agent cannot bypass the guard by simply not declaring a cycle.
+- **A — cycle declaration is required within this profile.** Production code
+  staged with no `.tdd-cycle` is rejected. This closes the escape hatch of §1
+  (whose `[[ -f marker ]] || exit 0` meant "no marker ⇒ pass"): the default in
+  this profile is *deny*, and an agent cannot bypass the guard by simply not
+  declaring a cycle.
 - **B — test-modification guard (§1).** In a cycle commit a test file may only
   *grow*: a new file, or a **purely additive** diff to an existing one, is fine
   (that is how you author the cycle's test). Deleting a test, or a diff that
@@ -47,10 +50,12 @@ gates into one chokepoint (the commit):
   know which file is "the cycle test" (works for colocated Go/React tests too).
 - **C — RED→GREEN proof (§2, §5).** With the staged production code reverted to
   its HEAD state the cycle test *must fail*; with it restored the test *must
-  pass*. The ordering is verified deterministically at commit time. The old
-  "wrong-reason" grep is dropped from RED (a missing-symbol `ImportError` is a
-  legitimate Python RED); genuine wiring breakage persists into GREEN and is
-  caught there instead — no false rejects on the normal Python flow.
+  pass*. The ordering is verified deterministically at commit time on that
+  target; this does not prove the chronology was honest or that the oracle is
+  business-correct. The old "wrong-reason" grep is dropped from RED (a
+  missing-symbol `ImportError` is a legitimate Python structural RED); genuine
+  wiring breakage persists into GREEN and is caught there instead — no false
+  rejects on the normal Python flow.
 
 It touches only the worktree copies of the staged src files (backed up and
 restored byte-for-byte), so untracked files and unrelated unstaged edits are
@@ -92,13 +97,18 @@ regexes and runner. Override any knob directly: `TDD_TEST_RE`, `TDD_SRC_RE`,
 Python preset classifies `test_*.py` / `*_test.py` / anything under `tests/` as
 tests, everything else `*.py` as production, and runs `pytest "$sel"`.
 
+`TDD_RUN` is trusted shell code supplied by the operator, never data taken from
+the test name. The selector is passed as **one quoted argument** (for example
+`-- "$sel"`); never interpolate it into `sh -c`, `eval` it, or re-parse it as
+shell/JSON. Treat test names and paths as data.
+
 **Limits.** `git commit --no-verify` bypasses it, like any pre-commit — the hard
 backstop is the CI gate (§4/§5), unreachable by `--no-verify`. And an
 import-driven RED can still hide an assertion-vacuous test (`assert True` next to
 a real import): that residual "test theatre" is what mutation testing (§4) exists
 to kill. This gate proves *ordering*, not *assertion quality*.
 
-The three mechanisms below (§1, §2) remain documented as the lightweight,
+The two mechanisms below (§1, §2) remain documented as the lightweight,
 self-reported variant — use them only if you cannot run tests in the pre-commit.
 
 ---
@@ -155,7 +165,7 @@ rm .tdd-cycle                                # cycle done
 
 ---
 
-## §2. RED must fail first (and for the right reason)
+## §2. RED confirmation — default for TDD and bug-regression missing behavior only
 
 `scripts/tdd-red.sh`:
 
@@ -167,13 +177,14 @@ TEST_ID="${1:?usage: tdd-red.sh <pytest node id>}"
 LOG="$(mktemp)"
 
 if pytest "$TEST_ID" --tb=short -q > "$LOG" 2>&1; then
-  echo "ERROR: test passed on first run — discipline §2. STOP and investigate." >&2
+  echo "NO RED: the test passed on first run. This wrapper is for TDD/bug-regression missing behavior only. If this is characterization or tests-only, keep the useful coverage and reclassify; refactoring does not use this wrapper. Never force production code or an expected value." >&2
   cat "$LOG" >&2
   exit 1
 fi
 
-# Reject infrastructure errors masquerading as RED.
-if grep -E '(ModuleNotFoundError|ImportError|SyntaxError|fixture .* not found|collected 0 items)' "$LOG" > /dev/null; then
+# Reject unrelated infrastructure errors. A missing API (ImportError) can be a
+# legitimate structural RED in Python; do not blanket-reject it.
+if grep -E '(SyntaxError|fixture .* not found|collected 0 items)' "$LOG" > /dev/null; then
   echo "ERROR: test failed for the WRONG reason (infra). Fix the test, re-run." >&2
   cat "$LOG" >&2
   exit 1
@@ -187,30 +198,25 @@ Usage in the agent loop:
 
 ```bash
 ./scripts/tdd-red.sh tests/test_checkout.py::test_happy_path
-# only proceed to write production code if .tdd-red exists
+# TDD/bug-regression missing behavior only. If the test is already green,
+# reclassify (characterization/tests-only) and keep the useful coverage.
 [[ -f .tdd-red ]] && pytest -q && rm .tdd-red
 ```
 
 ---
 
-## §3. Lock test files between RED and Green
+## §3. Review the test diff (no file locking)
+
+Before the commit, inspect the test diff:
 
 ```bash
-# entering Green phase
-chmod a-w tests/test_checkout.py
-
-# after Green commit
-chmod u+w tests/test_checkout.py
+git diff --cached -- tests/ src/
 ```
 
-For a stronger lock that survives chmod tampering, use git's index assume:
-
-```bash
-git update-index --assume-unchanged tests/test_checkout.py   # before Green
-git update-index --no-assume-unchanged tests/test_checkout.py # after
-```
-
-(Caveat: `--assume-unchanged` is a local optimization, not a lock. Combine with §1 hook.)
+Confirm that test changes are additive or are an independently justified
+correction (review only for business ambiguity, scope change or agreed risk). Do **not** use `chmod a-w`, `git update-index --assume-unchanged` or
+`--skip-worktree` as a lock: those hide or confuse the diff, can lose work, and
+are not an integrity boundary. Keep the diff visible.
 
 ---
 
@@ -250,9 +256,13 @@ jobs:
 
       - name: Run mutmut
         if: steps.changed.outputs.files != ''
+        env:
+          CHANGED_FILES: ${{ steps.changed.outputs.files }}
         run: |
+          # CHANGED_FILES is the comma-delimited single value produced above;
+          # pass it as one quoted argument, never splice the expression here.
           mutmut run \
-            --paths-to-mutate "${{ steps.changed.outputs.files }}" \
+            --paths-to-mutate "$CHANGED_FILES" \
             --runner "pytest -x -q" \
             || true
           mutmut results
@@ -260,7 +270,9 @@ jobs:
 
       - name: Enforce threshold
         if: steps.changed.outputs.files != ''
-        run: python scripts/check_mutation_score.py --threshold 0.70
+        env:
+          MUTATION_THRESHOLD: "0.80"  # illustrative — choose per module and risk
+        run: python scripts/check_mutation_score.py --threshold "$MUTATION_THRESHOLD"
 
       - uses: actions/upload-artifact@v4
         if: always() && steps.changed.outputs.files != ''
@@ -279,7 +291,8 @@ import argparse, subprocess, sys, re
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--threshold", type=float, default=0.70)
+    p.add_argument("--threshold", type=float, required=True,
+                   help="per-module/risk threshold; there is no universal value")
     args = p.parse_args()
 
     out = subprocess.check_output(["mutmut", "results"], text=True)
@@ -384,33 +397,23 @@ if errors:
 
 ---
 
-## §6. Agent role split (optional, advanced)
+## §6. Independent review by risk (optional, advanced)
 
-In Claude Code `settings.json`, scope tool permissions per session:
-
-```json
-{
-  "permissions": {
-    "tools": {
-      "Edit":  { "paths": ["tests/**/*.py"] },
-      "Write": { "paths": ["tests/**/*.py"] },
-      "Read":  { "paths": ["src/**/*.py", "tests/**/*.py"] }
-    }
-  }
-}
-```
-
-This restricts the "test author" session to test files. The "implementer"
-session uses the inverse (write to `src/` only, read tests as text).
+When the risk justifies it, have another person or agent review the claim, the
+oracle's provenance and the diff. This is a **review process**, not a mandatory
+role split and not a harness configuration. The skill intentionally contains no
+tool or permission fields: use the review mechanism your environment provides,
+and keep the diff visible so the reviewer can inspect it.
 
 ---
 
-## Minimum viable Python setup (2 things)
+## Minimum viable Python setup (optional)
 
-If you adopt only two:
+If you adopt only two optional mechanisms:
 
-1. `scripts/tdd-verify-cycle.sh` as the pre-commit (§0) — folds §1 + §2 into a
-   single proven RED→GREEN gate, with the escape hatch closed.
+1. `scripts/tdd-verify-cycle.sh` as an **opt-in** pre-commit (§0) — folds §1 +
+   §2 into a proven RED→GREEN gate on the selected target, with the additive and
+   refactor constraints stated above.
 2. `mutmut` GitHub Action on PRs (§4) — the assertion-quality backstop that a
    commit-time gate cannot provide, and the layer `--no-verify` cannot skip.
 

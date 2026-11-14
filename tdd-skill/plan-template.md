@@ -1,16 +1,24 @@
-# plan.md — Template and Workflow
+# plan.md — Optional Plan Artifact
 
-The `plan.md` artifact is the **persistent, ordered list of tests** the agent must
-implement. It is the source of truth for "what comes next" across sessions and
-across agent restarts. Inspired by Kent Beck's augmented-coding workflow (2025).
+The `plan.md` artifact is an optional, persistent list of the tests or behaviors
+you intend to cover. It helps across sessions and agent restarts. It is **not**
+required, and it does not impose a commit or approval cadence. Use it when the
+change is large enough that a written plan reduces risk; skip it for a small
+fix.
+
+Inspired by Kent Beck's augmented-coding workflow (2025).
 
 ## Template
 
-Copy the section below into a fresh `plan.md` at the root of the feature branch
-or in the module being worked on.
+Copy the section below into a `plan.md` at the root of the feature branch or in
+the module being worked on.
 
 ```markdown
 # Plan — <feature or module name>
+
+## Mode
+
+<TDD | bug regression | characterization | refactoring | tests-only>
 
 ## Spec
 
@@ -26,19 +34,19 @@ or in the module being worked on.
 
 - <what this feature explicitly does NOT do>
 
-## Interface (proposed)
+## Seam / contract (proposed)
 
 ```
-<signature(s) — function names, parameters, return types>
+<public signature(s) or persistence contract — not private helpers>
 ```
 
-## Tests (ordered, one per cycle)
+## Cases (ordered by risk, not quota)
 
-- [ ] T1 — happy path: <one-line behavior>
-- [ ] T2 — empty input: <behavior>
-- [ ] T3 — invalid input: <behavior>
-- [ ] T4 — boundary: <behavior>
-- [ ] T5 — error propagation: <behavior>
+- [ ] C1 — happy path: <one-line behavior>
+- [ ] C2 — empty input: <behavior>
+- [ ] C3 — invalid input: <behavior>
+- [ ] C4 — boundary: <behavior>
+- [ ] C5 — regression: <behavior>
 
 ## Follow-ups (not for this session)
 
@@ -49,61 +57,55 @@ or in the module being worked on.
 - <ADR-style line: chose X over Y because Z>
 ```
 
-## Workflow with the agent
+## Working with the agent
 
-The agent's loop is:
+A reasonable loop for a TDD slice:
 
 ```
-1. Read plan.md.
-2. Pick the first unchecked test in "Tests".
-3. Write the test. Confirm RED (right reason).
+1. Read plan.md (if one exists).
+2. Pick the next case by risk or dependency.
+3. Write the test. Confirm RED for the right reason (or first useful green in
+   tests-only/characterization).
 4. Write minimal production code. Confirm GREEN.
-5. Refactor if obvious. Tests stay green.
-6. Mark the test [x] in plan.md.
-7. Commit. Message format:
-     test: T<n> <behavior>
-     refs: plan.md
-8. Stop. Wait for "go" before next cycle.
+5. Refactor if useful. Tests stay green.
+6. Mark the case done in plan.md.
+7. Report commands actually run, scope and results. Commit/review according to
+   the repository's risk policy.
 ```
 
-This explicit stop after each cycle is intentional — it creates the **human
-checkpoint** that prevents drift. The agent does not autonomously chain cycles
-unless the human says so.
+There is no mandatory stop after each case. Human checkpoints are by risk. The
+agent does not autonomously chain risky changes; it does not need a ceremonial
+pause after every trivial one either.
 
 ## Prompt to give the agent on session start
 
 ```
-You operate in strict TDD mode. Read SKILL.md and agent-discipline.md before
-anything else. Your source of truth is plan.md.
+Read SKILL.md and agent-discipline.md before anything else. Your source of
+truth is plan.md when one exists, otherwise the stated objective.
 
 On "go":
-  1. Pick the next unchecked test in plan.md.
-  2. Write the test, run it, confirm it fails for the right reason.
-  3. Write minimal code, run it, confirm green.
-  4. Propose ONE refactor at most. Wait for approval.
-  5. Mark the test done in plan.md.
-  6. Commit (one cycle = one commit).
-  7. STOP. Wait for "go".
+  1. Pick the next case by risk.
+  2. Write the test, run it, and report the actual failure reason
+     (or the first useful green in tests-only/characterization).
+  3. Write the minimum coherent production code, run it, report GREEN.
+  4. Refactor only on an understood green.
+  5. Mark the case done in plan.md.
+  6. Report commands run, scope and limits. Commit/review per repo policy.
 
-Hard rules from agent-discipline.md apply. If unsure, STOP and ask.
+Rules from agent-discipline.md apply. If unsure, STOP and ask.
 ```
 
-## Why plan.md is external (not in chat context)
+## Why a file can help
 
-- Survives session crashes, context compaction, restarts.
+- Survives session crashes, context compaction and restarts.
 - Reviewable as a file (diff, blame, PR comments).
-- Multi-agent friendly: any agent can pick up the next item.
-- Auditable: at the end, the plan file is a record of what was actually done vs intended.
-
-## Why ordered, not a backlog
-
-Order matters in TDD. The next test should be the smallest behavior that adds
-value given everything already implemented. A bag of unordered tests invites
-horizontal slicing (see SKILL.md anti-pattern). The author of plan.md (human)
-chooses the order; the agent does not reshuffle.
+- Multi-agent friendly: another agent can pick up the next case.
+- Auditable: the plan is a record of intent, while the report records what was
+  actually run.
 
 ## When plan.md is wrong
 
-If the agent discovers, mid-cycle, that a planned test is impossible, redundant,
-or contradicts the spec: **STOP**. Surface the conflict, propose an update to
-plan.md, wait for human approval. Do not silently skip or rewrite the entry.
+If the agent discovers mid-cycle that a planned case is impossible, redundant or
+contradicts the spec: **STOP**. Surface the conflict, propose an update, and wait
+for a decision when the risk warrants it. Do not silently skip or rewrite the
+entry.

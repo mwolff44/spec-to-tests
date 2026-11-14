@@ -1,6 +1,8 @@
 # Good and Bad Tests
 
-> Source: Matt Pocock, `mattpocock/skills` — kept as-is.
+> Adapted from Matt Pocock, `mattpocock/skills`. Examples and the behavior-first
+> principle are preserved; this fork adds mode-aware characterization, doubles
+> and contract notes.
 
 ## Good Tests
 
@@ -23,6 +25,7 @@ Characteristics:
 - Survives internal refactors
 - Describes WHAT, not HOW
 - One logical assertion per test
+- For characterization, pins observed behavior without claiming it is correct
 
 ## Bad Tests
 
@@ -39,7 +42,7 @@ test("checkout calls paymentService.process", async () => {
 
 Red flags:
 
-- Mocking internal collaborators
+- Mocking internal collaborators without a stated reason
 - Testing private methods
 - Asserting on call counts/order
 - Test breaks when refactoring without behavior change

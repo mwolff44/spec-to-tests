@@ -1,7 +1,8 @@
 # Hooks — TypeScript / JavaScript
 
 Concrete, copy-paste-ready guardrails for TS/JS projects using `vitest` (or `jest`)
-and StrykerJS. Maps to the four mechanisms in `hooks.md`.
+and StrykerJS. Maps to the six mechanisms in `hooks.md`. Every mechanism is
+optional; the strict profile is opt-in, not the default.
 
 Assumptions:
 - Test files match `**/*.{test,spec}.{ts,tsx,js}` (configurable).
@@ -33,12 +34,14 @@ pnpm exec husky init
 
 ---
 
-## §0. Hardened all-in-one gate (recommended)
+## §0. Optional strict profile (opt-in)
 
-Use the shared `scripts/tdd-verify-cycle.sh` with `TDD_LANG=ts`. It proves the
-RED→GREEN ordering at commit time instead of trusting the agent — see
+Use the shared `scripts/tdd-verify-cycle.sh` with `TDD_LANG=ts` **only when you
+explicitly select the strict profile**. It proves RED→GREEN ordering on the
+selected target at commit time instead of trusting the agent — see
 [hooks-python.md](hooks-python.md) §0 for the full rationale (gates A/B/C, the
-closed escape hatch, the byte-for-byte worktree safety). TS/React specifics:
+additive/refactor constraints, the byte-for-byte worktree safety, and the
+limit: ordering, not chronology or a business oracle). TS/React specifics:
 
 - **Colocated tests.** Classified by suffix: `*.{test,spec}.{ts,tsx,js,jsx}` are
   tests, other `*.{ts,tsx,js,jsx}` are production — so `Component.test.tsx`
@@ -136,7 +139,7 @@ pnpm exec lint-staged
 
 ---
 
-## §2. RED must fail first (and for the right reason)
+## §2. RED confirmation — default for TDD and bug-regression missing behavior only
 
 `scripts/tdd-red.sh`:
 
@@ -150,13 +153,15 @@ LOG="$(mktemp)"
 # vitest: -t selects by test name, --run disables watch
 # (use --reporter=dot; the `basic` reporter was removed from recent vitest)
 if pnpm exec vitest --run -t "$TEST_PATTERN" --reporter=dot > "$LOG" 2>&1; then
-  echo "ERROR: test passed on first run — discipline §2. STOP and investigate." >&2
+  echo "NO RED: the test passed on first run. This wrapper is for TDD/bug-regression missing behavior only. If this is characterization or tests-only, keep the useful coverage and reclassify; refactoring does not use this wrapper. Never force production code or an expected value." >&2
   cat "$LOG" >&2
   exit 1
 fi
 
-# Reject infrastructure errors
-if grep -E '(Cannot find module|SyntaxError|TS[0-9]+:|No test files found|Failed to load)' "$LOG" > /dev/null; then
+# Reject unrelated infrastructure errors. A missing module or type error can be
+# a legitimate structural RED when the public API is absent; inspect it rather
+# than rejecting every TS error automatically.
+if grep -E '(SyntaxError|No test files found|Failed to load)' "$LOG" > /dev/null; then
   echo "ERROR: test failed for the WRONG reason (infra). Fix the test, re-run." >&2
   cat "$LOG" >&2
   exit 1
@@ -176,28 +181,25 @@ Usage in agent loop:
 
 ```bash
 ./scripts/tdd-red.sh "checkout > happy path"
-# only proceed to GREEN if .tdd-red exists
+# TDD/bug-regression missing behavior only. If the test is already green,
+# reclassify (characterization/tests-only) and keep the useful coverage.
 [[ -f .tdd-red ]] && pnpm test && rm .tdd-red
 ```
 
 ---
 
-## §3. Lock test files between RED and Green
+## §3. Review the test diff (no file locking)
+
+Before the commit, inspect the test diff:
 
 ```bash
-# entering Green
-chmod a-w src/checkout.test.ts
-
-# after Green commit
-chmod u+w src/checkout.test.ts
+git diff --cached -- 'src/**/*.{test,spec}.{ts,tsx,js,jsx}'
 ```
 
-In Windows / CI environments where `chmod` is awkward, fall back to the index trick:
-
-```bash
-git update-index --skip-worktree src/checkout.test.ts   # before Green
-git update-index --no-skip-worktree src/checkout.test.ts # after
-```
+Confirm that test changes are additive or are an independently justified
+correction (review only for business ambiguity, scope change or agreed risk). Do **not** use `chmod a-w`, `git update-index --skip-worktree` or
+`--assume-unchanged` as a lock: those hide or confuse the diff and are not an
+integrity boundary. Keep the diff visible.
 
 ---
 
@@ -229,7 +231,7 @@ pnpm add -D @stryker-mutator/core @stryker-mutator/vitest-runner @stryker-mutato
   ],
   "incremental": true,
   "incrementalFile": ".stryker-tmp/incremental.json",
-  "thresholds": { "high": 80, "low": 60, "break": 60 },
+  "thresholds": { "high": 85, "low": 70, "break": 70 },
   "coverageAnalysis": "perTest",
   "concurrency": 4,
   "timeoutMS": 30000
@@ -280,13 +282,16 @@ jobs:
 
       - name: Stryker (changed only)
         if: steps.changed.outputs.files != ''
+        env:
+          CHANGED_FILES: ${{ steps.changed.outputs.files }}
         run: |
-          # Pass changed files as additional mutate patterns
-          ARGS=""
+          # CHANGED_FILES is newline-delimited (the delimiter produced above).
+          # Build an argument array; never splice the expression into the shell.
+          args=()
           while IFS= read -r f; do
-            [[ -n "$f" ]] && ARGS="$ARGS --mutate $f"
-          done <<< "${{ steps.changed.outputs.files }}"
-          pnpm exec stryker run $ARGS
+            [[ -n "$f" ]] && args+=("--mutate" "$f")
+          done <<< "$CHANGED_FILES"
+          pnpm exec stryker run "${args[@]}"
 
       - uses: actions/upload-artifact@v4
         if: always() && steps.changed.outputs.files != ''
@@ -295,7 +300,9 @@ jobs:
           path: reports/mutation/
 ```
 
-The `thresholds.break: 60` line is the gate — Stryker exits non-zero if the score drops below 60%.
+These numbers are **per-module examples chosen by risk**; there is no universal
+threshold. Stryker exits non-zero when the score drops below the configured
+`break` value, so set it deliberately for the module under change.
 
 ---
 
@@ -362,32 +369,23 @@ CI `grep` guards as a safety net (`.github/workflows/lint.yml`):
 
 ---
 
-## §6. Agent role split (optional, advanced)
+## §6. Independent review by risk (optional, advanced)
 
-Claude Code `settings.json` scoping:
-
-```json
-{
-  "permissions": {
-    "tools": {
-      "Edit":  { "paths": ["**/*.{test,spec}.ts"] },
-      "Write": { "paths": ["**/*.{test,spec}.ts"] },
-      "Read":  { "paths": ["src/**/*.ts"] }
-    }
-  }
-}
-```
-
-Inverse for the implementer session (`src/**/*.ts` writeable, tests read-only).
+When the risk justifies it, have another person or agent review the claim, the
+oracle's provenance and the diff. This is a **review process**, not a mandatory
+role split and not a harness configuration. The skill contains no tool or
+permission fields: use your environment's review mechanism and keep the diff
+visible.
 
 ---
 
-## Minimum viable TS setup (2 things)
+## Minimum viable TS setup (optional)
 
-1. `scripts/tdd-verify-cycle.sh` as pre-commit with `TDD_LANG=ts` (§0) — proven
-   RED→GREEN, escape hatch closed, folds §1 + §2.
-2. StrykerJS GitHub Action with `thresholds.break: 60` and incremental cache (§4)
-   — the assertion-quality backstop `--no-verify` can't skip.
+1. `scripts/tdd-verify-cycle.sh` as an **opt-in** pre-commit with `TDD_LANG=ts`
+   (§0) — proven RED→GREEN on the selected target, with the additive and
+   refactor constraints stated in the strict profile.
+2. StrykerJS GitHub Action with a per-module `thresholds.break` and incremental
+   cache (§4) — the assertion-quality backstop `--no-verify` can't skip.
 
 The ESLint `vitest/expect-expect` rule (§5) is a near-zero-cost bonus that
 catches a large share of perpetually-green tests at lint time, before mutation
